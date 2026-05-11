@@ -17,6 +17,7 @@ export default function CalendarPage({onLogout, onNavigate}) {
                 <h2>Calendar</h2>
 
                 <div className="actions">
+                    <button onClick={() => onNavigate("time-tracking")}>Time Tracking</button>
                     <button onClick={() => onNavigate("dashboard")}>Dashboard</button>
                     <button onClick={onLogout}>Logout</button>
                 </div>

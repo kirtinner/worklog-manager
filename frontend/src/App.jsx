@@ -2,6 +2,7 @@ import { useState } from "react";
 import Dashboard from "./pages/Dashboard";
 import CalendarPage from "./pages/CalendarPage";
 import LoginPage from "./pages/LoginPage";
+import TimeTrackingPage from "./pages/TimeTrackingPage";
 
 function App() {
   const [isAuth, setIsAuth] = useState(
@@ -18,7 +19,12 @@ function App() {
   return (
       <div>
         {isAuth ? (
-            page === "calendar" ? (
+            page === "time-tracking" ? (
+                <TimeTrackingPage
+                    onLogout={logout}
+                    onNavigate={setPage}
+                />
+            ) : page === "calendar" ? (
                 <CalendarPage
                     onLogout={logout}
                     onNavigate={setPage}

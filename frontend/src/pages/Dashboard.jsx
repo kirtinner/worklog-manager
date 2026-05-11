@@ -89,6 +89,7 @@ export default function Dashboard({onLogout, onNavigate}) {
             <div className="header">
                 <h2>Dev Productivity</h2>
                 <div className="actions">
+                    <button onClick={() => onNavigate("time-tracking")}>Time Tracking</button>
                     <button onClick={() => onNavigate("calendar")}>Calendar</button>
                     <button onClick={onLogout}>Logout</button>
                 </div>

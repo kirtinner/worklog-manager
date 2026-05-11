@@ -145,3 +145,273 @@ select {
     display: none;
   }
 }
+
+.tracking-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  background: #eef1f5;
+  color: #1f2933;
+}
+
+.tracking-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  background: #f8fafc;
+  border-right: 1px solid #d9dee7;
+  box-sizing: border-box;
+}
+
+.tracking-brand {
+  padding-bottom: 14px;
+  border-bottom: 1px solid #d9dee7;
+}
+
+.tracking-brand-title {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.tracking-brand-subtitle {
+  margin-top: 4px;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.tracking-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.tracking-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.tracking-topbar h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.tracking-topbar p {
+  margin: 4px 0 0;
+  color: #667085;
+  font-size: 13px;
+}
+
+.tracking-content-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(220px, 1.1fr) minmax(190px, 0.9fr) minmax(150px, 0.7fr);
+  gap: 14px;
+}
+
+.tracking-panel {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 1px solid #dfe4ec;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.06);
+  overflow: hidden;
+}
+
+.tracking-panel-header {
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 0 14px;
+  border-bottom: 1px solid #e5e9f0;
+  background: #fbfcfe;
+}
+
+.tracking-panel-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.tracking-panel-body {
+  flex: 1;
+  min-height: 0;
+  padding: 14px;
+  box-sizing: border-box;
+}
+
+.tracking-calendar-panel {
+  flex: 1;
+}
+
+.tracking-mini-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.tracking-calendar-weekday {
+  color: #667085;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.tracking-calendar-cell {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e3e8ef;
+  border-radius: 5px;
+  background: #f7f9fc;
+  color: #344054;
+  font-size: 12px;
+}
+
+.tracking-nav {
+  display: grid;
+  gap: 8px;
+}
+
+.tracking-nav button {
+  width: 100%;
+  background: #475467;
+  text-align: left;
+}
+
+.tracking-table {
+  display: grid;
+  gap: 8px;
+}
+
+.tracking-table-row {
+  display: grid;
+  grid-template-columns: 120px minmax(160px, 1fr) 90px 120px;
+  gap: 12px;
+  align-items: center;
+}
+
+.tracking-table-head {
+  padding: 8px 10px;
+  background: #f2f4f7;
+  border-radius: 6px;
+  color: #475467;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tracking-placeholder-list {
+  display: grid;
+  gap: 8px;
+}
+
+.tracking-placeholder-row {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  gap: 12px;
+  padding: 11px 10px;
+  border: 1px solid #edf0f5;
+  border-radius: 6px;
+}
+
+.tracking-placeholder-row span,
+.tracking-comment-lines span,
+.tracking-detail-block,
+.tracking-summary-grid div {
+  display: block;
+  min-height: 12px;
+  border-radius: 4px;
+  background: #edf1f6;
+}
+
+.tracking-detail-layout {
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(180px, 0.8fr) minmax(240px, 1.2fr);
+  gap: 16px;
+}
+
+.tracking-detail-block {
+  min-height: 100%;
+}
+
+.tracking-comment-lines {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.tracking-comment-lines span {
+  min-height: 18px;
+}
+
+.tracking-summary-grid {
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.tracking-summary-grid div {
+  min-height: 76px;
+}
+
+@media (max-width: 900px) {
+  .tracking-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .tracking-sidebar {
+    border-right: none;
+    border-bottom: 1px solid #d9dee7;
+  }
+
+  .tracking-nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .tracking-nav button {
+    text-align: center;
+  }
+
+  .tracking-content-grid {
+    grid-template-rows: auto;
+  }
+
+  .tracking-table-row {
+    grid-template-columns: minmax(90px, 0.8fr) minmax(130px, 1.3fr) 70px 90px;
+  }
+
+  .tracking-detail-layout,
+  .tracking-summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .tracking-sidebar,
+  .tracking-main {
+    padding: 14px;
+  }
+
+  .tracking-table {
+    overflow-x: auto;
+  }
+
+  .tracking-table-row {
+    min-width: 520px;
+  }
+
+  .tracking-nav {
+    grid-template-columns: 1fr;
+  }
+}
