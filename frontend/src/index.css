@@ -1,0 +1,147 @@
+body {
+  font-family: Arial, sans-serif;
+  background: #f5f6fa;
+  margin: 0;
+}
+
+.container {
+  max-width: 600px;
+  margin: 40px auto;
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+input {
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+button {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  background: #4CAF50;
+  color: white;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+button:hover {
+  background: #45a049;
+}
+
+.entry {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px;
+  margin-top: 10px;
+  background: #f1f2f6;
+  border-radius: 8px;
+}
+
+select {
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.actions button:first-child {
+  background: #3498db; /* Edit — синий */
+}
+
+.actions button:last-child {
+  background: #e74c3c; /* Delete — красный */
+}
+
+.form-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.calendar-container {
+  max-width: 900px;
+}
+
+.calendar-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.calendar-title span {
+  color: #666;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(80px, 1fr));
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.calendar-weekday {
+  color: #555;
+  font-size: 14px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.calendar-day {
+  min-height: 92px;
+  padding: 10px;
+  background: #f1f2f6;
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+.calendar-day span {
+  font-weight: bold;
+}
+
+.calendar-day-muted {
+  background: #fafafa;
+}
+
+.calendar-placeholder {
+  margin-top: 18px;
+  color: #777;
+  font-size: 13px;
+}
+
+@media (max-width: 700px) {
+  .calendar-grid {
+    grid-template-columns: repeat(7, minmax(38px, 1fr));
+    gap: 4px;
+  }
+
+  .calendar-day {
+    min-height: 68px;
+    padding: 6px;
+  }
+
+  .calendar-placeholder {
+    display: none;
+  }
+}
