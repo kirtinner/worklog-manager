@@ -1,4 +1,4 @@
-export default function AppNavigationShell({ activePage, onNavigate, onLogout, children }) {
+export default function AppNavigationShell({ activePage, onNavigate, onOpenSettings, onLogout, children }) {
     const mainItems = [
         { key: "time-tracking", label: "Time Tracking" },
         { key: "reports", label: "Reports" }
@@ -58,6 +58,9 @@ export default function AppNavigationShell({ activePage, onNavigate, onLogout, c
                 </nav>
 
                 <div className="app-shell-footer">
+                    <button type="button" className="app-shell-nav-item" onClick={onOpenSettings}>
+                        Settings
+                    </button>
                     <button type="button" className="app-shell-logout" onClick={onLogout}>
                         Logout
                     </button>

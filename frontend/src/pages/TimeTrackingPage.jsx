@@ -5,6 +5,7 @@ import WorklogEntriesTable from "../components/WorklogEntriesTable";
 import { createLocalWorklogEntry } from "../utils/timeTrackingEntries";
 import { buildCalendarDays, formatMonthYear } from "../utils/timeTrackingDates";
 import { validateWorklogDay } from "../utils/timeTrackingValidation";
+import { getOrganizations } from "../services/organizationsService";
 import {
     getClients,
     getTasks,
@@ -59,7 +60,26 @@ function mergeEntriesForDate(currentEntries, date, nextDayEntries) {
     return nextEntries;
 }
 
-export default function TimeTrackingPage() {
+function areWorklogEntryContentsEqual(left, right) {
+    if (!left || !right) {
+        return false;
+    }
+
+    return left.clientId === right.clientId
+        && left.taskId === right.taskId
+        && Number(left.hours) === Number(right.hours)
+        && (left.comment ?? "") === (right.comment ?? "");
+}
+
+function getEntryModifiedState(nextEntry, originalEntry) {
+    if (!originalEntry) {
+        return true;
+    }
+
+    return originalEntry.modified || !areWorklogEntryContentsEqual(nextEntry, originalEntry);
+}
+
+export default function TimeTrackingPage({ settingsOpenRequest = 0 }) {
     const today = new Date();
 
     const [entries, setEntries] = useState([]);
@@ -69,25 +89,39 @@ export default function TimeTrackingPage() {
     const [selectedYear, setSelectedYear] = useState(today.getFullYear());
     const [selectedDate, setSelectedDate] = useState(formatDateKey(today));
     const [selectedEntryId, setSelectedEntryId] = useState(null);
-    const [dirtyDates, setDirtyDates] = useState({});
+    const [editingEntryId, setEditingEntryId] = useState(null);
+    const [editingOriginalEntry, setEditingOriginalEntry] = useState(null);
+    const [editingEntryIsNew, setEditingEntryIsNew] = useState(false);
+    const [editingFallbackSelectionId, setEditingFallbackSelectionId] = useState(null);
     const [localIdSeed, setLocalIdSeed] = useState(1);
     const [dailyHoursLimit, setDailyHoursLimit] = useState(16);
+    const [organizations, setOrganizations] = useState([]);
+    const [currentOrganizationId, setCurrentOrganizationId] = useState(null);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [settingsDraftLimit, setSettingsDraftLimit] = useState("16");
+    const [settingsDraftOrganizationId, setSettingsDraftOrganizationId] = useState("");
     const [settingsError, setSettingsError] = useState("");
+    const [pendingSelectionId, setPendingSelectionId] = useState(null);
+    const [switchDialogOpen, setSwitchDialogOpen] = useState(false);
     const [pendingDateSelection, setPendingDateSelection] = useState(null);
     const [dateSwitchConfirmOpen, setDateSwitchConfirmOpen] = useState(false);
     const [validationDialogOpen, setValidationDialogOpen] = useState(false);
     const [validationIssues, setValidationIssues] = useState([]);
-    const [commentDraft, setCommentDraft] = useState("");
     const [apiErrorMessage, setApiErrorMessage] = useState("");
     const selectedDateRef = useRef(selectedDate);
+    const cancelEntryEditRef = useRef(() => {});
+    const settingsOpenRequestRef = useRef(settingsOpenRequest);
 
     const calendarDays = buildCalendarDays(selectedMonth, selectedYear);
     const selectedMonthLabel = formatMonthYear(selectedMonth, selectedYear);
     const filteredEntries = entries.filter(entry => entry.date === selectedDate);
     const selectedEntry = filteredEntries.find(entry => entry.id === selectedEntryId);
-    const selectedDayHasUnsavedChanges = Boolean(dirtyDates[selectedDate]);
+    const selectedDayHasUnsavedChanges = entries.some(entry => entry.date === selectedDate && entry.modified);
+    const editingCurrentEntry = entries.find(entry => entry.id === editingEntryId) ?? null;
+    const isEditingEntryDirty = Boolean(
+        editingEntryId != null &&
+        (editingEntryIsNew || editingOriginalEntry == null || !areWorklogEntryContentsEqual(editingCurrentEntry, editingOriginalEntry))
+    );
 
     useEffect(() => {
         let active = true;
@@ -120,6 +154,36 @@ export default function TimeTrackingPage() {
     }, []);
 
     useEffect(() => {
+        let active = true;
+
+        async function loadOrganizations() {
+            try {
+                const nextOrganizations = await getOrganizations();
+
+                if (!active) {
+                    return;
+                }
+
+                setOrganizations(nextOrganizations);
+                setCurrentOrganizationId(current => current ?? nextOrganizations[0]?.id ?? null);
+                setSettingsDraftOrganizationId(current => current || String(nextOrganizations[0]?.id ?? ""));
+            } catch (error) {
+                if (!active) {
+                    return;
+                }
+
+                setApiErrorMessage(getApiErrorMessage(error, "Unable to load organization lookup data."));
+            }
+        }
+
+        loadOrganizations();
+
+        return () => {
+            active = false;
+        };
+    }, []);
+
+    useEffect(() => {
         selectedDateRef.current = selectedDate;
     }, [selectedDate]);
 
@@ -141,7 +205,10 @@ export default function TimeTrackingPage() {
                     const nextSelectedDate = nextEntries[0]?.date ?? formatDateKey(new Date(selectedYear, selectedMonth, 1));
                     setSelectedDate(nextSelectedDate);
                     setSelectedEntryId(null);
-                    setCommentDraft("");
+                    setEditingEntryId(null);
+                    setEditingOriginalEntry(null);
+                    setEditingEntryIsNew(false);
+                    setEditingFallbackSelectionId(null);
                 }
 
                 setApiErrorMessage("");
@@ -166,59 +233,6 @@ export default function TimeTrackingPage() {
         setValidationIssues([]);
     };
 
-    const syncCommentDraftForEntry = (entryId, sourceEntries = entries) => {
-        const nextEntry = sourceEntries.find(entry => entry.id === entryId && entry.date === selectedDate);
-        setCommentDraft(nextEntry?.comment ?? "");
-    };
-
-    const commitCommentDraft = () => {
-        if (!selectedEntry || commentDraft === selectedEntry.comment) {
-            return;
-        }
-
-        setEntries(currentEntries =>
-            currentEntries.map(entry =>
-                entry.id === selectedEntry.id
-                    ? { ...entry, comment: commentDraft, modified: true }
-                    : entry
-            )
-        );
-        markSelectedDayDirty();
-    };
-
-    const handleCommentChange = (nextValue) => {
-        setCommentDraft(nextValue);
-
-        if (!selectedEntry) {
-            return;
-        }
-
-        markSelectedDayDirty();
-    };
-
-    const revertCommentDraft = () => {
-        setCommentDraft(selectedEntry?.comment ?? "");
-
-        const hasModifiedEntries = entries.some(
-            entry => entry.date === selectedDate && entry.modified
-        );
-
-        if (!hasModifiedEntries) {
-            setDirtyDates(currentDirtyDates => ({
-                ...currentDirtyDates,
-                [selectedDate]: false
-            }));
-        }
-    };
-
-    const markSelectedDayDirty = () => {
-        setDirtyDates(currentDirtyDates => ({
-            ...currentDirtyDates,
-            [selectedDate]: true
-        }));
-        clearTransientMessages();
-    };
-
     const loadEntriesForDate = async (date) => {
         try {
             const nextDayEntries = await getTimeEntriesByDate(date);
@@ -233,7 +247,12 @@ export default function TimeTrackingPage() {
     const switchToDate = (date, shouldLoadDayEntries = true) => {
         setSelectedDate(date);
         setSelectedEntryId(null);
-        setCommentDraft("");
+        setEditingEntryId(null);
+        setEditingOriginalEntry(null);
+        setEditingEntryIsNew(false);
+        setEditingFallbackSelectionId(null);
+        setPendingSelectionId(null);
+        setSwitchDialogOpen(false);
         clearTransientMessages();
         if (shouldLoadDayEntries) {
             void loadEntriesForDate(date);
@@ -290,81 +309,157 @@ export default function TimeTrackingPage() {
         requestDateSwitch(formatDateKey(nextDate), nextDate.getMonth(), nextDate.getFullYear());
     };
 
-    const handleSelectEntry = (entryId) => {
-        setSelectedEntryId(entryId);
-        syncCommentDraftForEntry(entryId);
-    };
-
-    const handleEntryHoursChange = (entryId, nextHours) => {
-        setEntries(currentEntries =>
-            currentEntries.map(entry =>
-                entry.id === entryId
-                    ? { ...entry, hours: nextHours, modified: true }
-                    : entry
-            )
-        );
-        markSelectedDayDirty();
-    };
-
-    const handleEntryMetaChange = (entryId, field, value) => {
+    const updateEditableEntry = (entryId, updater) => {
         setEntries(currentEntries =>
             currentEntries.map(entry => {
                 if (entry.id !== entryId) {
                     return entry;
                 }
 
-                if (field === "client") {
-                    if (value === "") {
-                        return {
-                            ...entry,
-                            clientId: null,
-                            clientName: "New Client",
-                            taskId: null,
-                            taskName: "",
-                            modified: true
-                        };
-                    }
+                const nextEntry = updater(entry);
+                const modified = editingEntryIsNew
+                    ? true
+                    : getEntryModifiedState(nextEntry, editingOriginalEntry?.id === entryId ? editingOriginalEntry : null);
 
-                    const clientId = Number(value);
-                    const selectedClient = clients.find(client => client.id === clientId);
-
-                    return {
-                        ...entry,
-                        clientId: selectedClient?.id ?? null,
-                        clientName: selectedClient?.name ?? "New Client",
-                        taskId: null,
-                        taskName: "",
-                        modified: true
-                    };
-                }
-
-                if (field === "task") {
-                    if (value === "") {
-                        return {
-                            ...entry,
-                            taskId: null,
-                            taskName: "",
-                            modified: true
-                        };
-                    }
-
-                    const taskId = Number(value);
-                    const selectedTask = tasks.find(task => task.id === taskId);
-                    const taskMatchesClient =
-                        entry.clientId != null && selectedTask?.clientId === entry.clientId;
-
-                    return {
-                        ...entry,
-                        taskId: taskMatchesClient ? selectedTask.id : null,
-                        taskName: taskMatchesClient ? selectedTask.name : "",
-                        modified: true
-                    };
-                }
-
-                return entry;
+                return {
+                    ...nextEntry,
+                    modified
+                };
             })
         );
-        markSelectedDayDirty();
+    };
+
+    const beginEntryEdit = (entry, previousSelectionId = entry.id, isNewEntry = false) => {
+        setSelectedEntryId(entry.id);
+        setEditingEntryId(entry.id);
+        setEditingOriginalEntry(entry ? { ...entry } : null);
+        setEditingEntryIsNew(isNewEntry);
+        setEditingFallbackSelectionId(previousSelectionId);
+        clearTransientMessages();
+    };
+
+    const getEditingDayEntries = (sourceEntries = entries) =>
+        sourceEntries.filter(entry => entry.date === selectedDate);
+
+    const handleSelectEntry = (entryId) => {
+        if (editingEntryId != null && entryId !== editingEntryId) {
+            if (isEditingEntryDirty) {
+                setPendingSelectionId(entryId);
+                setSwitchDialogOpen(true);
+                return;
+            }
+
+            const selected = entries.find(entry => entry.id === entryId);
+            if (selected) {
+                setSelectedEntryId(entryId);
+                setEditingEntryId(null);
+                setEditingOriginalEntry(null);
+                setEditingEntryIsNew(false);
+                setEditingFallbackSelectionId(null);
+                setPendingSelectionId(null);
+                setSwitchDialogOpen(false);
+                clearTransientMessages();
+            }
+            return;
+        }
+
+        setSelectedEntryId(entryId);
+    };
+
+    const handleRowEditRequest = (entryId) => {
+        const targetEntry = entries.find(entry => entry.id === entryId);
+        if (!targetEntry) {
+            return;
+        }
+
+        if (editingEntryId != null && entryId === editingEntryId) {
+            return;
+        }
+
+        if (editingEntryId != null && entryId !== editingEntryId) {
+            if (isEditingEntryDirty) {
+                setPendingSelectionId(entryId);
+                setSwitchDialogOpen(true);
+                return;
+            }
+
+            setSelectedEntryId(entryId);
+            beginEntryEdit(targetEntry, entryId, false);
+            setPendingSelectionId(null);
+            setSwitchDialogOpen(false);
+            return;
+        }
+
+        beginEntryEdit(targetEntry, selectedEntryId ?? entryId, false);
+    };
+
+    const handleEntryHoursChange = (entryId, nextHours) => {
+        updateEditableEntry(entryId, entry => ({ ...entry, hours: nextHours }));
+    };
+
+    const handleEntryMetaChange = (entryId, field, value) => {
+        updateEditableEntry(entryId, entry => {
+            if (field === "comment") {
+                return {
+                    ...entry,
+                    comment: value
+                };
+            }
+
+            if (field === "client") {
+                if (value === "") {
+                    return {
+                        ...entry,
+                        clientId: null,
+                        clientName: "New Client",
+                        taskId: null,
+                        taskName: ""
+                    };
+                }
+
+                const clientId = Number(value);
+                const selectedClient = clients.find(client => client.id === clientId);
+
+                return {
+                    ...entry,
+                    clientId: selectedClient?.id ?? null,
+                    clientName: selectedClient?.name ?? "New Client",
+                    taskId: null,
+                    taskName: ""
+                };
+            }
+
+            if (field === "task") {
+                if (value === "") {
+                    return {
+                        ...entry,
+                        taskId: null,
+                        taskName: ""
+                    };
+                }
+
+                const taskId = Number(value);
+                const selectedTask = tasks.find(task => task.id === taskId);
+                const taskMatchesClient =
+                    entry.clientId != null && selectedTask?.clientId === entry.clientId;
+
+                return {
+                    ...entry,
+                    taskId: taskMatchesClient ? selectedTask.id : null,
+                    taskName: taskMatchesClient ? selectedTask.name : ""
+                };
+            }
+
+            return entry;
+        });
+    };
+
+    const handleEntryCommentChange = (nextValue) => {
+        if (!editingEntryId || selectedEntryId !== editingEntryId) {
+            return;
+        }
+
+        handleEntryMetaChange(editingEntryId, "comment", nextValue);
     };
 
     const handleAddEntry = () => {
@@ -372,9 +467,14 @@ export default function TimeTrackingPage() {
 
         setEntries(currentEntries => [...currentEntries, nextEntry]);
         setSelectedEntryId(nextEntry.id);
-        setCommentDraft(nextEntry.comment);
+        setEditingEntryId(nextEntry.id);
+        setEditingOriginalEntry({ ...nextEntry });
+        setEditingEntryIsNew(true);
+        setEditingFallbackSelectionId(selectedEntryId);
         setLocalIdSeed(currentSeed => currentSeed + 1);
-        markSelectedDayDirty();
+        setPendingSelectionId(null);
+        setSwitchDialogOpen(false);
+        clearTransientMessages();
     };
 
     const handleDeleteEntry = (entryId) => {
@@ -389,27 +489,83 @@ export default function TimeTrackingPage() {
             if (selectedEntryId === entryId) {
                 const remainingSameDay = remainingEntries.filter(entry => entry.date === selectedDate);
                 nextSelection = remainingSameDay[0]?.id ?? null;
-                syncCommentDraftForEntry(nextSelection, remainingEntries);
             }
             return remainingEntries;
         });
 
         setSelectedEntryId(nextSelection);
-        markSelectedDayDirty();
+        if (editingEntryId === entryId) {
+            setEditingEntryId(null);
+            setEditingOriginalEntry(null);
+            setEditingEntryIsNew(false);
+            setEditingFallbackSelectionId(null);
+        }
+
+        clearTransientMessages();
     };
 
-    const handleSaveDay = async () => {
-        let nextEntries = entries;
+    const resolveEntrySelectionAfterDiscard = () => {
+        if (editingFallbackSelectionId != null && entries.some(entry => entry.id === editingFallbackSelectionId)) {
+            return editingFallbackSelectionId;
+        }
 
-        if (selectedEntry && commentDraft !== selectedEntry.comment) {
-            nextEntries = nextEntries.map(entry =>
-                entry.id === selectedEntry.id
-                    ? { ...entry, comment: commentDraft, modified: true }
-                    : entry
+        return entries.find(entry => entry.date === selectedDate && entry.id !== editingEntryId)?.id ?? null;
+    };
+
+    const cancelEntryEdit = () => {
+        if (!editingEntryId) {
+            return;
+        }
+
+        const currentEditingId = editingEntryId;
+        const originalEntry = editingOriginalEntry;
+
+        if (editingEntryIsNew) {
+            setEntries(currentEntries => currentEntries.filter(entry => entry.id !== currentEditingId));
+        } else {
+            setEntries(currentEntries =>
+                currentEntries.map(entry =>
+                    entry.id === currentEditingId
+                        ? { ...originalEntry }
+                        : entry
+                )
             );
         }
 
-        const dayEntries = nextEntries.filter(entry => entry.date === selectedDate);
+        setSelectedEntryId(resolveEntrySelectionAfterDiscard());
+        setEditingEntryId(null);
+        setEditingOriginalEntry(null);
+        setEditingEntryIsNew(false);
+        setEditingFallbackSelectionId(null);
+        setPendingSelectionId(null);
+        setSwitchDialogOpen(false);
+        clearTransientMessages();
+    };
+
+    const saveEditingEntry = () => {
+        if (!editingEntryId) {
+            return true;
+        }
+
+        const dayEntries = getEditingDayEntries();
+        const validation = validateWorklogDay(dayEntries, dailyHoursLimit);
+
+        if (!validation.isValid) {
+            setValidationIssues(validation.issues);
+            setValidationDialogOpen(true);
+            return false;
+        }
+
+        setEditingEntryId(null);
+        setEditingOriginalEntry(null);
+        setEditingEntryIsNew(false);
+        setEditingFallbackSelectionId(null);
+        clearTransientMessages();
+        return true;
+    };
+
+    const handleSaveDay = async () => {
+        const dayEntries = getEditingDayEntries();
         const validation = validateWorklogDay(dayEntries, dailyHoursLimit);
 
         if (!validation.isValid) {
@@ -434,27 +590,22 @@ export default function TimeTrackingPage() {
                 )
             );
 
-            setDirtyDates(currentDirtyDates => ({
-                ...currentDirtyDates,
-                [selectedDate]: false
-            }));
+            setEditingEntryId(null);
+            setEditingOriginalEntry(null);
+            setEditingEntryIsNew(false);
+            setEditingFallbackSelectionId(null);
+            setPendingSelectionId(null);
+            setSwitchDialogOpen(false);
 
             if (savedEntries.length > 0) {
                 const nextSelectedEntry = savedEntries[selectedDayIndex >= 0 ? selectedDayIndex : 0];
                 setSelectedEntryId(nextSelectedEntry?.id ?? null);
-                setCommentDraft(nextSelectedEntry?.comment ?? "");
             }
 
             setApiErrorMessage("");
         } catch (error) {
             setApiErrorMessage(getApiErrorMessage(error, "Unable to save time entries for the selected day."));
         }
-    };
-
-    const handleOpenSettings = () => {
-        setSettingsDraftLimit(String(dailyHoursLimit));
-        setSettingsError("");
-        setSettingsOpen(true);
     };
 
     const handleApplySettings = () => {
@@ -466,9 +617,24 @@ export default function TimeTrackingPage() {
         }
 
         setDailyHoursLimit(parsedLimit);
+        if (settingsDraftOrganizationId !== "") {
+            setCurrentOrganizationId(Number(settingsDraftOrganizationId));
+        }
         setSettingsOpen(false);
         setSettingsError("");
     };
+
+    useEffect(() => {
+        if (settingsOpenRequest === settingsOpenRequestRef.current) {
+            return;
+        }
+
+        settingsOpenRequestRef.current = settingsOpenRequest;
+        setSettingsDraftLimit(String(dailyHoursLimit));
+        setSettingsDraftOrganizationId(String(currentOrganizationId ?? organizations[0]?.id ?? ""));
+        setSettingsError("");
+        setSettingsOpen(true);
+    }, [currentOrganizationId, dailyHoursLimit, organizations, settingsOpenRequest]);
 
     const handleConfirmDateSwitch = () => {
         if (!pendingDateSelection) {
@@ -497,6 +663,88 @@ export default function TimeTrackingPage() {
         setDateSwitchConfirmOpen(false);
     };
 
+    const handleSaveFromRowSwitchDialog = () => {
+        if (saveEditingEntry()) {
+            setEditingEntryId(null);
+            setEditingOriginalEntry(null);
+            setEditingEntryIsNew(false);
+            setEditingFallbackSelectionId(null);
+            setSelectedEntryId(pendingSelectionId);
+            setPendingSelectionId(null);
+            setSwitchDialogOpen(false);
+        }
+    };
+
+    const handleDiscardFromRowSwitchDialog = () => {
+        if (!editingEntryId) {
+            setPendingSelectionId(null);
+            setSwitchDialogOpen(false);
+            return;
+        }
+
+        const currentEditingId = editingEntryId;
+        const originalEntry = editingOriginalEntry;
+
+        if (editingEntryIsNew) {
+            setEntries(currentEntries => currentEntries.filter(entry => entry.id !== currentEditingId));
+        } else {
+            setEntries(currentEntries =>
+                currentEntries.map(entry =>
+                    entry.id === currentEditingId
+                        ? { ...originalEntry }
+                        : entry
+                )
+            );
+        }
+
+        setEditingEntryId(null);
+        setEditingOriginalEntry(null);
+        setEditingEntryIsNew(false);
+        setEditingFallbackSelectionId(null);
+        setSelectedEntryId(pendingSelectionId);
+        setPendingSelectionId(null);
+        setSwitchDialogOpen(false);
+    };
+
+    const handleStayEditing = () => {
+        setPendingSelectionId(null);
+        setSwitchDialogOpen(false);
+    };
+
+    useEffect(() => {
+        cancelEntryEditRef.current = cancelEntryEdit;
+    });
+
+    useEffect(() => {
+        if (
+            editingEntryId == null ||
+            settingsOpen ||
+            validationDialogOpen ||
+            dateSwitchConfirmOpen ||
+            switchDialogOpen
+        ) {
+            return undefined;
+        }
+
+        const handleKeyDown = (event) => {
+            if (event.key !== "Escape") {
+                return;
+            }
+
+            event.preventDefault();
+            cancelEntryEditRef.current();
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [
+        dateSwitchConfirmOpen,
+        editingEntryId,
+        settingsOpen,
+        switchDialogOpen,
+        validationDialogOpen
+    ]);
+
     return (
         <div className="tracking-main tracking-time-tracking-main" data-dirty={selectedDayHasUnsavedChanges ? "true" : "false"}>
             <header className="tracking-topbar">
@@ -521,14 +769,6 @@ export default function TimeTrackingPage() {
                             disabled={!selectedDayHasUnsavedChanges}
                         >
                             Save
-                        </button>
-                        <button
-                            type="button"
-                            className="tracking-settings-button"
-                            aria-label="Open time tracking settings"
-                            onClick={handleOpenSettings}
-                        >
-                            {"\u2699"}
                         </button>
                     </div>
                 </div>
@@ -596,25 +836,30 @@ export default function TimeTrackingPage() {
                             clients={clients}
                             tasks={tasks}
                             selectedEntryId={selectedEntryId}
+                            editingEntryId={editingEntryId}
                             onSelectEntry={handleSelectEntry}
+                            onRequestEditEntry={handleRowEditRequest}
                             onEntryHoursChange={handleEntryHoursChange}
                             onEntryMetaChange={handleEntryMetaChange}
                             onAddEntry={handleAddEntry}
                             onDeleteEntry={handleDeleteEntry}
+                            onSaveEntryEdit={saveEditingEntry}
+                            onCancelEntryEdit={cancelEntryEdit}
                         />
                     </PlaceholderPanel>
 
                     <PlaceholderPanel title="Comment" className="tracking-details-panel">
                         <TaskDetailsPanel
                             entry={selectedEntry}
-                            value={commentDraft}
-                            onChange={handleCommentChange}
-                            onCommit={commitCommentDraft}
-                            onEscape={revertCommentDraft}
+                            value={selectedEntry?.comment ?? ""}
+                            disabled={editingEntryId == null || selectedEntryId !== editingEntryId}
+                            onChange={handleEntryCommentChange}
+                            onCommit={() => {}}
+                            onEscape={cancelEntryEdit}
                         />
                     </PlaceholderPanel>
 
-                    <PlaceholderPanel title="Monthly Summary" className="tracking-summary-panel">
+                    <PlaceholderPanel title={`Monthly Summary — ${selectedMonthLabel}`} className="tracking-summary-panel">
                         <MonthlySummaryTable
                             entries={entries}
                             selectedMonth={selectedMonth}
@@ -631,16 +876,32 @@ export default function TimeTrackingPage() {
                             <h3 id="tracking-settings-title">Settings</h3>
                         </div>
                         <div className="tracking-modal-body">
-                            <label className="tracking-modal-field">
-                                <span>Daily hours limit</span>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    step="0.25"
-                                    value={settingsDraftLimit}
-                                    onChange={event => setSettingsDraftLimit(event.target.value)}
-                                />
-                            </label>
+                            <div className="tracking-modal-fields">
+                                <label className="tracking-modal-field">
+                                    <span>Daily hours limit</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.25"
+                                        value={settingsDraftLimit}
+                                        onChange={event => setSettingsDraftLimit(event.target.value)}
+                                    />
+                                </label>
+                                <label className="tracking-modal-field">
+                                    <span>Current Organization</span>
+                                    <select
+                                        value={settingsDraftOrganizationId}
+                                        onChange={event => setSettingsDraftOrganizationId(event.target.value)}
+                                    >
+                                        <option value="">Select organization</option>
+                                        {organizations.map(organization => (
+                                            <option key={organization.id} value={String(organization.id)}>
+                                                {organization.shortName} - {organization.fullName}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+                            </div>
                             {settingsError ? (
                                 <div className="tracking-modal-error">{settingsError}</div>
                             ) : null}
@@ -707,6 +968,32 @@ export default function TimeTrackingPage() {
                                 onClick={handleCancelDateSwitch}
                             >
                                 Остаться
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {switchDialogOpen && (
+                <div className="tracking-modal-overlay" role="presentation">
+                    <div className="tracking-modal tracking-modal-confirm" role="dialog" aria-modal="true" aria-labelledby="tracking-row-switch-title">
+                        <div className="tracking-modal-header">
+                            <h3 id="tracking-row-switch-title">Unsaved changes</h3>
+                        </div>
+                        <div className="tracking-modal-body">
+                            <p className="tracking-modal-text">
+                                There are unsaved changes for the current worklog row. What do you want to do?
+                            </p>
+                        </div>
+                        <div className="tracking-modal-actions">
+                            <button type="button" className="tracking-modal-button" onClick={handleSaveFromRowSwitchDialog}>
+                                Save changes
+                            </button>
+                            <button type="button" className="tracking-modal-button" onClick={handleDiscardFromRowSwitchDialog}>
+                                Discard changes
+                            </button>
+                            <button type="button" className="tracking-modal-button tracking-modal-button-secondary" onClick={handleStayEditing}>
+                                Stay
                             </button>
                         </div>
                     </div>

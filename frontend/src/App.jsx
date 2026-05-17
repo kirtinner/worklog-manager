@@ -11,6 +11,7 @@ import TimeTrackingPage from "./pages/TimeTrackingPage";
 function App() {
     const [isAuth, setIsAuth] = useState(!!localStorage.getItem("token"));
     const [page, setPage] = useState("time-tracking");
+    const [settingsOpenRequest, setSettingsOpenRequest] = useState(0);
 
     const logout = () => {
         localStorage.removeItem("token");
@@ -18,10 +19,15 @@ function App() {
         setPage("time-tracking");
     };
 
+    const handleOpenSettings = () => {
+        setPage("time-tracking");
+        setSettingsOpenRequest(current => current + 1);
+    };
+
     const renderPage = () => {
         switch (page) {
             case "time-tracking":
-                return <TimeTrackingPage />;
+                return <TimeTrackingPage settingsOpenRequest={settingsOpenRequest} />;
             case "reports":
                 return <ReportsPage />;
             case "clients":
@@ -33,14 +39,19 @@ function App() {
             case "organizations":
                 return <OrganizationsPage />;
             default:
-                return <TimeTrackingPage />;
+                return <TimeTrackingPage settingsOpenRequest={settingsOpenRequest} />;
         }
     };
 
     return (
         <div>
             {isAuth ? (
-                <AppNavigationShell activePage={page} onNavigate={setPage} onLogout={logout}>
+                <AppNavigationShell
+                    activePage={page}
+                    onNavigate={setPage}
+                    onOpenSettings={handleOpenSettings}
+                    onLogout={logout}
+                >
                     {renderPage()}
                 </AppNavigationShell>
             ) : (

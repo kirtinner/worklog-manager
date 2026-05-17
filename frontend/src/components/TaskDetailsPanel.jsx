@@ -1,11 +1,11 @@
-export default function TaskDetailsPanel({ entry, value, onChange, onCommit, onEscape }) {
+export default function TaskDetailsPanel({ entry, value, disabled = false, onChange, onCommit, onEscape }) {
     return (
         <div className="task-details-panel">
             <div className="task-details-comment">
                 <textarea
                     className="task-details-textarea"
                     value={entry ? value : ""}
-                    disabled={!entry}
+                    disabled={!entry || disabled}
                     aria-label="Comment"
                     onChange={event => onChange(event.target.value)}
                     onBlur={onCommit}
@@ -17,6 +17,7 @@ export default function TaskDetailsPanel({ entry, value, onChange, onCommit, onE
 
                         if (event.key === "Escape") {
                             event.preventDefault();
+                            event.stopPropagation();
                             onEscape();
                         }
                     }}

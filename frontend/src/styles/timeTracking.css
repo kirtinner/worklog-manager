@@ -34,7 +34,9 @@
 }
 
 .worklog-toolbar-add,
-.worklog-toolbar-delete {
+.worklog-toolbar-edit,
+.worklog-toolbar-delete,
+.worklog-toolbar-secondary {
   padding: 5px 8px;
   border: 1px solid #d9dee7;
   border-radius: 5px;
@@ -46,14 +48,35 @@
 }
 
 .worklog-toolbar-add:hover,
-.worklog-toolbar-delete:hover:not(:disabled) {
+.worklog-toolbar-edit:hover,
+.worklog-toolbar-delete:hover:not(:disabled),
+.worklog-toolbar-secondary:hover {
   border-color: #b8c2d0;
   background: #f2f4f7;
+}
+
+.worklog-toolbar-delete-separated {
+  padding-left: 10px;
+  border-left: 1px solid #d9dee7;
 }
 
 .worklog-toolbar-delete:disabled {
   opacity: 0.45;
   cursor: default;
+}
+
+.worklog-toolbar-add:disabled,
+.worklog-toolbar-edit:disabled,
+.worklog-toolbar-secondary:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.worklog-readonly-cell {
+  display: inline-block;
+  width: 100%;
+  min-height: 24px;
+  line-height: 1.12;
 }
 
 .worklog-table-scroll {

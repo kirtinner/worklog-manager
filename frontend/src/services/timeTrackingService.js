@@ -1,5 +1,9 @@
 import api from "../api/api";
 
+function isLocalTimeEntryId(id) {
+    return typeof id === "string" && id.startsWith("local-");
+}
+
 function mapTimeEntry(entry) {
     return {
         id: entry.id,
@@ -71,13 +75,26 @@ export async function getTimeEntriesByMonth(year, month) {
 }
 
 export async function saveTimeEntriesForDate(date, entries) {
-    const payload = entries.map(entry => ({
-        id: entry.id,
-        clientId: entry.clientId,
-        taskId: entry.taskId,
-        hours: entry.hours,
-        comment: entry.comment ?? ""
-    }));
+    const payload = entries.map(entry => {
+        const base = {
+            clientId: entry.clientId,
+            taskId: entry.taskId,
+            hours: entry.hours,
+            comment: entry.comment ?? ""
+        };
+
+        if (isLocalTimeEntryId(entry.id)) {
+            return {
+                ...base,
+                id: null
+            };
+        }
+
+        return {
+            ...base,
+            id: entry.id
+        };
+    });
 
     const response = await api.put("/time-entries/day", payload, {
         params: { date }

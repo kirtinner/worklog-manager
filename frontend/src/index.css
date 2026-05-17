@@ -217,6 +217,8 @@ select {
   margin-top: auto;
   padding-top: 12px;
   border-top: 1px solid #d9dee7;
+  display: grid;
+  gap: 8px;
 }
 
 .app-shell-main {
@@ -983,6 +985,22 @@ select {
   color: #1f2933;
   font: inherit;
   box-sizing: border-box;
+}
+
+.tracking-modal-field select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #d9dee7;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #1f2933;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.tracking-modal-fields {
+  display: grid;
+  gap: 10px;
 }
 
 .tracking-modal-error {

@@ -1,5 +1,3 @@
-import { useRef, useState } from "react";
-
 function formatHours(value) {
     return value.toFixed(2);
 }
@@ -11,124 +9,79 @@ function isValidHoursInput(value) {
 export default function WorklogEntriesTable({
     entries,
     selectedEntryId,
+    editingEntryId,
     onSelectEntry,
+    onRequestEditEntry,
     onEntryHoursChange,
     onEntryMetaChange,
     onAddEntry,
     onDeleteEntry,
+    onSaveEntryEdit,
+    onCancelEntryEdit,
     clients = [],
     tasks = [],
     validationErrorIds = [],
     hasDailyLimitViolation = false
 }) {
-    const [editingCell, setEditingCell] = useState(null);
-    const skipNextBlurSave = useRef(false);
-
     const totalHours = entries.reduce((sum, entry) => sum + entry.hours, 0);
+
+    const isEditMode = editingEntryId != null;
 
     const selectEntry = (entry) => {
         onSelectEntry(entry.id);
     };
 
-    const startEditing = (entry) => {
-        selectEntry(entry);
-        skipNextBlurSave.current = false;
-        setEditingCell({
-            entryId: entry.id,
-            field: "hours",
-            draftValue: String(entry.hours)
-        });
+    const handleClientChange = (entryId, value) => {
+        onEntryMetaChange(entryId, "client", value);
     };
 
-    const startMetaEditing = (entry, field) => {
-        selectEntry(entry);
-        skipNextBlurSave.current = false;
-        setEditingCell({
-            entryId: entry.id,
-            field
-        });
+    const handleTaskChange = (entryId, value) => {
+        onEntryMetaChange(entryId, "task", value);
     };
 
-    const updateDraftValue = (value) => {
-        if (!isValidHoursInput(value)) {
-            return;
-        }
-
-        setEditingCell(current => ({
-            ...current,
-            draftValue: value
-        }));
-    };
-
-    const saveEditing = () => {
-        if (!editingCell) {
-            return;
-        }
-
-        if (editingCell.field === "client" || editingCell.field === "task") {
-            setEditingCell(null);
-            return;
-        }
-
-        const nextHours = Number(editingCell.draftValue);
-
-        if (editingCell.draftValue === "" || Number.isNaN(nextHours)) {
-            setEditingCell(null);
-            return;
-        }
-
-        onEntryHoursChange(editingCell.entryId, nextHours);
-        setEditingCell(null);
-    };
-
-    const cancelEditing = () => {
-        skipNextBlurSave.current = true;
-        setEditingCell(null);
-    };
-
-    const handleHoursBlur = () => {
-        if (skipNextBlurSave.current) {
-            skipNextBlurSave.current = false;
-            return;
-        }
-
-        saveEditing();
-    };
-
-    const handleEditKeyDown = (event) => {
-        if (event.key === "Enter") {
-            event.preventDefault();
-            skipNextBlurSave.current = true;
-            saveEditing();
-        }
-
-        if (event.key === "Escape") {
-            event.preventDefault();
-            cancelEditing();
-        }
-    };
-
-    const handleMetaChange = (entryId, field, value) => {
-        onEntryMetaChange(entryId, field, value);
-        setEditingCell(null);
-    };
+    const renderReadOnlyCell = (value, className = "") => (
+        <span className={["worklog-readonly-cell", className].filter(Boolean).join(" ")}>
+            {value}
+        </span>
+    );
 
     return (
         <div className="worklog-table-shell">
             <div className="worklog-toolbar">
                 <div className="worklog-toolbar-title">Entries</div>
                 <div className="worklog-toolbar-actions">
-                    <button type="button" className="worklog-toolbar-add" onClick={onAddEntry}>
-                        Add Entry
-                    </button>
-                    <button
-                        type="button"
-                        className="worklog-toolbar-delete"
-                        onClick={() => onDeleteEntry(selectedEntryId)}
-                        disabled={!selectedEntryId}
-                    >
-                        Delete Selected
-                    </button>
+                    {isEditMode ? (
+                        <>
+                            <button type="button" className="worklog-toolbar-add" onClick={onSaveEntryEdit}>
+                                Save
+                            </button>
+                            <button type="button" className="worklog-toolbar-secondary" onClick={onCancelEntryEdit}>
+                                Cancel
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <button type="button" className="worklog-toolbar-add" onClick={onAddEntry}>
+                                Add
+                            </button>
+                            <button
+                                type="button"
+                                className="worklog-toolbar-edit"
+                                onClick={() => selectedEntryId && onRequestEditEntry(selectedEntryId)}
+                                disabled={!selectedEntryId}
+                            >
+                                Edit
+                            </button>
+                            <button
+                                type="button"
+                                className="worklog-toolbar-delete worklog-toolbar-delete-separated"
+                                onClick={() => onDeleteEntry(selectedEntryId)}
+                                disabled={!selectedEntryId}
+                            >
+                                Delete
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
             <div className="worklog-table-scroll">
@@ -149,7 +102,7 @@ export default function WorklogEntriesTable({
                     </thead>
                     <tbody>
                         {entries.map(entry => {
-                            const isEditing = editingCell?.entryId === entry.id;
+                            const isEditing = editingEntryId === entry.id;
                             const isSelected = selectedEntryId === entry.id;
                             const hasValidationError = validationErrorIds.includes(entry.id);
                             const availableTasks = entry.clientId == null
@@ -165,15 +118,15 @@ export default function WorklogEntriesTable({
                                         hasValidationError ? "worklog-row-validation-error" : ""
                                     ].filter(Boolean).join(" ")}
                                     onClick={() => selectEntry(entry)}
+                                    onDoubleClick={() => onRequestEditEntry(entry.id)}
                                 >
                                     <td>
-                                        {editingCell?.entryId === entry.id && editingCell?.field === "client" ? (
+                                        {isEditing ? (
                                             <select
                                                 className="worklog-inline-select"
                                                 value={String(entry.clientId ?? "")}
-                                                onChange={event => handleMetaChange(entry.id, "client", event.target.value)}
-                                                onBlur={() => setEditingCell(null)}
-                                                autoFocus
+                                                onChange={event => handleClientChange(entry.id, event.target.value)}
+                                                onClick={event => event.stopPropagation()}
                                             >
                                                 <option value="">Select client</option>
                                                 {clients.map(client => (
@@ -183,24 +136,17 @@ export default function WorklogEntriesTable({
                                                 ))}
                                             </select>
                                         ) : (
-                                            <button
-                                                type="button"
-                                                className="worklog-inline-text"
-                                                onClick={() => startMetaEditing(entry, "client")}
-                                            >
-                                                <span className="worklog-client">{entry.clientName}</span>
-                                            </button>
+                                            renderReadOnlyCell(entry.clientName)
                                         )}
                                     </td>
                                     <td>
-                                        {editingCell?.entryId === entry.id && editingCell?.field === "task" ? (
+                                        {isEditing ? (
                                             <select
                                                 className="worklog-inline-select"
                                                 value={String(entry.taskId ?? "")}
                                                 disabled={entry.clientId == null || availableTasks.length === 0}
-                                                onChange={event => handleMetaChange(entry.id, "task", event.target.value)}
-                                                onBlur={() => setEditingCell(null)}
-                                                autoFocus
+                                                onChange={event => handleTaskChange(entry.id, event.target.value)}
+                                                onClick={event => event.stopPropagation()}
                                             >
                                                 <option value="">Select task</option>
                                                 {availableTasks.map(task => (
@@ -210,45 +156,38 @@ export default function WorklogEntriesTable({
                                                 ))}
                                             </select>
                                         ) : (
-                                            <button
-                                                type="button"
-                                                className="worklog-inline-text"
-                                                onClick={() => {
-                                                    if (entry.clientId == null || availableTasks.length === 0) {
+                                            renderReadOnlyCell(entry.taskName || "")
+                                        )}
+                                    </td>
+                                    <td className="worklog-number-column">
+                                        {isEditing ? (
+                                            <input
+                                                className="worklog-hours-input"
+                                                value={entry.hours === 0 ? "" : String(entry.hours)}
+                                                onChange={event => {
+                                                    if (!isValidHoursInput(event.target.value)) {
                                                         return;
                                                     }
 
-                                                    startMetaEditing(entry, "task");
+                                                    if (event.target.value === "") {
+                                                        onEntryHoursChange(entry.id, 0);
+                                                        return;
+                                                    }
+
+                                                    const parsedHours = Number(event.target.value);
+                                                    if (!Number.isNaN(parsedHours)) {
+                                                        onEntryHoursChange(entry.id, parsedHours);
+                                                    }
                                                 }}
-                                                disabled={entry.clientId == null || availableTasks.length === 0}
-                                            >
-                                                <span className="worklog-task">{entry.taskName || ""}</span>
-                                            </button>
-                                        )}
-                                    </td>
-                                    <td className="worklog-number-column">
-                                        {isEditing && editingCell?.field === "hours" ? (
-                                            <input
-                                                className="worklog-hours-input"
-                                                value={editingCell.draftValue}
-                                                onChange={event => updateDraftValue(event.target.value)}
-                                                onBlur={handleHoursBlur}
-                                                onKeyDown={handleEditKeyDown}
-                                                autoFocus
+                                                onClick={event => event.stopPropagation()}
                                                 inputMode="decimal"
                                             />
                                         ) : (
-                                            <button
-                                                type="button"
-                                                className="worklog-edit-ready"
-                                                onClick={() => startEditing(entry)}
-                                            >
-                                                {formatHours(entry.hours)}
-                                            </button>
+                                            renderReadOnlyCell(formatHours(entry.hours))
                                         )}
                                     </td>
                                     <td className="worklog-number-column">
-                                        {formatHours(entry.totalTaskHours)}
+                                        {renderReadOnlyCell(formatHours(entry.totalTaskHours))}
                                     </td>
                                 </tr>
                             );

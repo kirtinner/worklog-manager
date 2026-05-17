@@ -1,10 +1,5 @@
-import { useMemo, useState } from "react";
-
-const initialOrganizations = [
-    { id: 1, shortName: "NWG", fullName: "Northwind Group" },
-    { id: 2, shortName: "CONT", fullName: "Contoso Holdings" },
-    { id: 3, shortName: "APX", fullName: "Apex Consulting" }
-];
+import { useEffect, useMemo, useRef, useState } from "react";
+import { initialOrganizations } from "../mock/organizations";
 
 function cloneOrganizations(items) {
     return items.map(item => ({ ...item }));
@@ -50,6 +45,7 @@ export default function OrganizationsPage() {
     const [warningMessage, setWarningMessage] = useState("");
     const [switchDialogOpen, setSwitchDialogOpen] = useState(false);
     const [pendingSelectionId, setPendingSelectionId] = useState(null);
+    const handleCancelRef = useRef(() => {});
 
     const organizationCountLabel = useMemo(
         () => `${organizations.length} organization${organizations.length === 1 ? "" : "s"}`,
@@ -275,6 +271,33 @@ export default function OrganizationsPage() {
         setSwitchDialogOpen(false);
         setPendingSelectionId(null);
     };
+
+    useEffect(() => {
+        handleCancelRef.current = handleCancel;
+    });
+
+    useEffect(() => {
+        if (editingOrganizationId == null || validationDialogOpen || warningDialogOpen || switchDialogOpen) {
+            return undefined;
+        }
+
+        const handleKeyDown = (event) => {
+            if (event.key !== "Escape") {
+                return;
+            }
+
+            event.preventDefault();
+            handleCancelRef.current();
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [
+        editingOrganizationId,
+        switchDialogOpen,
+        validationDialogOpen,
+        warningDialogOpen
+    ]);
 
     const renderRow = (organization) => {
         const isSelected = organization.id === selectedOrganizationId;
