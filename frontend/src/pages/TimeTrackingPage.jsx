@@ -5,7 +5,6 @@ import WorklogEntriesTable from "../components/WorklogEntriesTable";
 import { createLocalWorklogEntry } from "../utils/timeTrackingEntries";
 import { buildCalendarDays, formatMonthYear } from "../utils/timeTrackingDates";
 import { validateWorklogDay } from "../utils/timeTrackingValidation";
-import { getOrganizations } from "../services/organizationsService";
 import {
     getClients,
     getTasks,
@@ -79,7 +78,12 @@ function getEntryModifiedState(nextEntry, originalEntry) {
     return originalEntry.modified || !areWorklogEntryContentsEqual(nextEntry, originalEntry);
 }
 
-export default function TimeTrackingPage({ settingsOpenRequest = 0 }) {
+export default function TimeTrackingPage({
+    settingsOpenRequest = 0,
+    organizations = [],
+    currentOrganizationId = null,
+    onCurrentOrganizationChange = () => {}
+}) {
     const today = new Date();
 
     const [entries, setEntries] = useState([]);
@@ -95,8 +99,6 @@ export default function TimeTrackingPage({ settingsOpenRequest = 0 }) {
     const [editingFallbackSelectionId, setEditingFallbackSelectionId] = useState(null);
     const [localIdSeed, setLocalIdSeed] = useState(1);
     const [dailyHoursLimit, setDailyHoursLimit] = useState(16);
-    const [organizations, setOrganizations] = useState([]);
-    const [currentOrganizationId, setCurrentOrganizationId] = useState(null);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [settingsDraftLimit, setSettingsDraftLimit] = useState("16");
     const [settingsDraftOrganizationId, setSettingsDraftOrganizationId] = useState("");
@@ -147,36 +149,6 @@ export default function TimeTrackingPage({ settingsOpenRequest = 0 }) {
         }
 
         loadLookups();
-
-        return () => {
-            active = false;
-        };
-    }, []);
-
-    useEffect(() => {
-        let active = true;
-
-        async function loadOrganizations() {
-            try {
-                const nextOrganizations = await getOrganizations();
-
-                if (!active) {
-                    return;
-                }
-
-                setOrganizations(nextOrganizations);
-                setCurrentOrganizationId(current => current ?? nextOrganizations[0]?.id ?? null);
-                setSettingsDraftOrganizationId(current => current || String(nextOrganizations[0]?.id ?? ""));
-            } catch (error) {
-                if (!active) {
-                    return;
-                }
-
-                setApiErrorMessage(getApiErrorMessage(error, "Unable to load organization lookup data."));
-            }
-        }
-
-        loadOrganizations();
 
         return () => {
             active = false;
@@ -618,7 +590,7 @@ export default function TimeTrackingPage({ settingsOpenRequest = 0 }) {
 
         setDailyHoursLimit(parsedLimit);
         if (settingsDraftOrganizationId !== "") {
-            setCurrentOrganizationId(Number(settingsDraftOrganizationId));
+            onCurrentOrganizationChange(Number(settingsDraftOrganizationId));
         }
         setSettingsOpen(false);
         setSettingsError("");

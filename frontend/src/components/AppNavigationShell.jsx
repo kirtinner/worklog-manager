@@ -58,9 +58,11 @@ export default function AppNavigationShell({ activePage, onNavigate, onOpenSetti
                 </nav>
 
                 <div className="app-shell-footer">
+                    <div className="app-shell-footer-separator" aria-hidden="true" />
                     <button type="button" className="app-shell-nav-item" onClick={onOpenSettings}>
                         Settings
                     </button>
+                    <div className="app-shell-footer-separator app-shell-footer-separator-compact" aria-hidden="true" />
                     <button type="button" className="app-shell-logout" onClick={onLogout}>
                         Logout
                     </button>
