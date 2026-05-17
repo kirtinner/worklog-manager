@@ -48,9 +48,7 @@ function buildMonthRows(entries, selectedMonth, selectedYear) {
         };
     });
 
-    const monthTotal = rows.reduce((sum, row) => {
-        return row.isWeekend ? sum : sum + row.totalHours;
-    }, 0);
+    const monthTotal = rows.reduce((sum, row) => sum + row.totalHours, 0);
 
     return { rows, monthTotal };
 }
@@ -83,7 +81,11 @@ export default function MonthlySummaryTable({ entries, selectedMonth, selectedYe
                                 <td>{formatDateLabel(row.date)}</td>
                                 <td>{row.weekday}</td>
                                 <td className="monthly-summary-number-column">
-                                    {row.isWeekend ? "—" : row.totalHours > 0 ? formatHours(row.totalHours) : ""}
+                                    {row.totalHours > 0
+                                        ? formatHours(row.totalHours)
+                                        : row.isWeekend
+                                            ? "—"
+                                            : ""}
                                 </td>
                             </tr>
                         ))}

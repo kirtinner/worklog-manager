@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import MonthlySummaryTable from "../components/MonthlySummaryTable";
 import TaskDetailsPanel from "../components/TaskDetailsPanel";
 import WorklogEntriesTable from "../components/WorklogEntriesTable";
-import { buildCalendarDays, formatMonthYear } from "../utils/timeTrackingDates";
 import { createLocalWorklogEntry } from "../utils/timeTrackingEntries";
+import { buildCalendarDays, formatMonthYear } from "../utils/timeTrackingDates";
 import { validateWorklogDay } from "../utils/timeTrackingValidation";
 import {
     getClients,
@@ -59,7 +59,7 @@ function mergeEntriesForDate(currentEntries, date, nextDayEntries) {
     return nextEntries;
 }
 
-export default function TimeTrackingPage({ onLogout, onNavigate }) {
+export default function TimeTrackingPage() {
     const today = new Date();
 
     const [entries, setEntries] = useState([]);
@@ -83,10 +83,11 @@ export default function TimeTrackingPage({ onLogout, onNavigate }) {
     const [apiErrorMessage, setApiErrorMessage] = useState("");
     const selectedDateRef = useRef(selectedDate);
 
+    const calendarDays = buildCalendarDays(selectedMonth, selectedYear);
+    const selectedMonthLabel = formatMonthYear(selectedMonth, selectedYear);
     const filteredEntries = entries.filter(entry => entry.date === selectedDate);
     const selectedEntry = filteredEntries.find(entry => entry.id === selectedEntryId);
     const selectedDayHasUnsavedChanges = Boolean(dirtyDates[selectedDate]);
-    const calendarDays = buildCalendarDays(selectedMonth, selectedYear);
 
     useEffect(() => {
         let active = true;
@@ -261,31 +262,37 @@ export default function TimeTrackingPage({ onLogout, onNavigate }) {
         switchToDate(nextDate, nextMonth == null && nextYear == null);
     };
 
-    const handleSelectDate = (date) => {
-        requestDateSwitch(date);
+    const handleSelectCalendarDay = (day) => {
+        if (!day?.date) {
+            return;
+        }
+
+        requestDateSwitch(day.date);
+    };
+
+    const handlePreviousMonth = () => {
+        const nextDate = new Date(selectedYear, selectedMonth - 1, 1);
+        requestDateSwitch(formatDateKey(nextDate), nextDate.getMonth(), nextDate.getFullYear());
+    };
+
+    const handleNextMonth = () => {
+        const nextDate = new Date(selectedYear, selectedMonth + 1, 1);
+        requestDateSwitch(formatDateKey(nextDate), nextDate.getMonth(), nextDate.getFullYear());
+    };
+
+    const handlePreviousYear = () => {
+        const nextDate = new Date(selectedYear - 1, selectedMonth, 1);
+        requestDateSwitch(formatDateKey(nextDate), nextDate.getMonth(), nextDate.getFullYear());
+    };
+
+    const handleNextYear = () => {
+        const nextDate = new Date(selectedYear + 1, selectedMonth, 1);
+        requestDateSwitch(formatDateKey(nextDate), nextDate.getMonth(), nextDate.getFullYear());
     };
 
     const handleSelectEntry = (entryId) => {
         setSelectedEntryId(entryId);
         syncCommentDraftForEntry(entryId);
-    };
-
-    const handleNavigateMonth = (monthDelta) => {
-        const nextDate = new Date(selectedYear, selectedMonth + monthDelta, 1);
-        requestDateSwitch(
-            `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, "0")}-01`,
-            nextDate.getMonth(),
-            nextDate.getFullYear()
-        );
-    };
-
-    const handleNavigateYear = (yearDelta) => {
-        const nextYear = selectedYear + yearDelta;
-        requestDateSwitch(
-            `${nextYear}-${String(selectedMonth + 1).padStart(2, "0")}-01`,
-            selectedMonth,
-            nextYear
-        );
     };
 
     const handleEntryHoursChange = (entryId, nextHours) => {
@@ -416,14 +423,16 @@ export default function TimeTrackingPage({ onLogout, onNavigate }) {
         try {
             const savedEntries = await saveTimeEntriesForDate(selectedDate, dayEntries);
 
-            setEntries(currentEntries => mergeEntriesForDate(
-                currentEntries,
-                selectedDate,
-                savedEntries.map(entry => ({
-                    ...entry,
-                    modified: false
-                }))
-            ));
+            setEntries(currentEntries =>
+                mergeEntriesForDate(
+                    currentEntries,
+                    selectedDate,
+                    savedEntries.map(entry => ({
+                        ...entry,
+                        modified: false
+                    }))
+                )
+            );
 
             setDirtyDates(currentDirtyDates => ({
                 ...currentDirtyDates,
@@ -487,42 +496,75 @@ export default function TimeTrackingPage({ onLogout, onNavigate }) {
         setPendingDateSelection(null);
         setDateSwitchConfirmOpen(false);
     };
-    return (
-        <div className="tracking-shell">
-            <aside className="tracking-sidebar">
-                <div className="tracking-brand">
-                    <div className="tracking-brand-title">Dev Productivity</div>
-                    <div className="tracking-brand-subtitle">Time tracking</div>
-                </div>
 
+    return (
+        <div className="tracking-main tracking-time-tracking-main" data-dirty={selectedDayHasUnsavedChanges ? "true" : "false"}>
+            <header className="tracking-topbar">
+                <div className="tracking-topbar-main">
+                    <div>
+                        <h2>Time Tracking</h2>
+                        <p>Worklog overview and monthly productivity summary</p>
+                    </div>
+                    <div className="tracking-topbar-actions">
+                        <div
+                            className={[
+                                "tracking-save-status",
+                                selectedDayHasUnsavedChanges ? "tracking-save-status-dirty" : ""
+                            ].filter(Boolean).join(" ")}
+                        >
+                            {selectedDayHasUnsavedChanges ? "Unsaved changes" : "Saved"}
+                        </div>
+                        <button
+                            type="button"
+                            className="tracking-save-button"
+                            onClick={handleSaveDay}
+                            disabled={!selectedDayHasUnsavedChanges}
+                        >
+                            Save
+                        </button>
+                        <button
+                            type="button"
+                            className="tracking-settings-button"
+                            aria-label="Open time tracking settings"
+                            onClick={handleOpenSettings}
+                        >
+                            {"\u2699"}
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            {apiErrorMessage ? (
+                <div className="tracking-status-banner tracking-status-banner-error">
+                    {apiErrorMessage}
+                </div>
+            ) : null}
+
+            <div className="tracking-content-grid">
                 <PlaceholderPanel title="Calendar" className="tracking-calendar-panel">
                     <div className="tracking-calendar-toolbar">
                         <div className="tracking-calendar-nav-group">
-                            <button type="button" onClick={() => handleNavigateYear(-1)}>
-                                &lt;&lt;
+                            <button type="button" onClick={handlePreviousYear} aria-label="Previous year">
+                                {"\u00AB"}
                             </button>
-                            <button type="button" onClick={() => handleNavigateMonth(-1)}>
-                                &lt;
+                            <button type="button" onClick={handlePreviousMonth} aria-label="Previous month">
+                                {"\u2039"}
                             </button>
                         </div>
-
-                        <div className="tracking-calendar-current">
-                            {formatMonthYear(selectedMonth, selectedYear)}
-                        </div>
-
+                        <div className="tracking-calendar-current">{selectedMonthLabel}</div>
                         <div className="tracking-calendar-nav-group">
-                            <button type="button" onClick={() => handleNavigateMonth(1)}>
-                                &gt;
+                            <button type="button" onClick={handleNextMonth} aria-label="Next month">
+                                {"\u203A"}
                             </button>
-                            <button type="button" onClick={() => handleNavigateYear(1)}>
-                                &gt;&gt;
+                            <button type="button" onClick={handleNextYear} aria-label="Next year">
+                                {"\u00BB"}
                             </button>
                         </div>
                     </div>
 
                     <div className="tracking-mini-calendar">
-                        {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((day, index) => (
-                            <div key={`${day}-${index}`} className="tracking-calendar-weekday">
+                        {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map(day => (
+                            <div key={day} className="tracking-calendar-weekday">
                                 {day}
                             </div>
                         ))}
@@ -535,10 +577,10 @@ export default function TimeTrackingPage({ onLogout, onNavigate }) {
                                     "tracking-calendar-cell",
                                     day.isMuted ? "tracking-calendar-cell-muted" : "",
                                     day.isWeekend ? "tracking-calendar-cell-weekend" : "",
-                                    selectedDate === day.date ? "tracking-calendar-cell-selected" : ""
+                                    day.date === selectedDate ? "tracking-calendar-cell-selected" : ""
                                 ].filter(Boolean).join(" ")}
+                                onClick={() => handleSelectCalendarDay(day)}
                                 disabled={day.isMuted}
-                                onClick={() => handleSelectDate(day.date)}
                             >
                                 {day.label}
                             </button>
@@ -546,62 +588,7 @@ export default function TimeTrackingPage({ onLogout, onNavigate }) {
                     </div>
                 </PlaceholderPanel>
 
-                <nav className="tracking-nav">
-                    <button type="button" onClick={() => onNavigate("dashboard")}>
-                        Dashboard
-                    </button>
-                    <button type="button" onClick={() => onNavigate("calendar")}>
-                        Calendar
-                    </button>
-                    <button type="button" onClick={onLogout}>
-                        Logout
-                    </button>
-                </nav>
-            </aside>
-
-            <main className="tracking-main" data-dirty={selectedDayHasUnsavedChanges ? "true" : "false"}>
-                <header className="tracking-topbar">
-                    <div className="tracking-topbar-main">
-                        <div>
-                            <h2>Time Tracking</h2>
-                            <p>Worklog overview and monthly productivity summary</p>
-                        </div>
-                        <div className="tracking-topbar-actions">
-                            <div
-                                className={[
-                                    "tracking-save-status",
-                                    selectedDayHasUnsavedChanges ? "tracking-save-status-dirty" : ""
-                                ].filter(Boolean).join(" ")}
-                            >
-                                {selectedDayHasUnsavedChanges ? "Unsaved changes" : "Saved"}
-                            </div>
-                            <button
-                                type="button"
-                                className="tracking-save-button"
-                                onClick={handleSaveDay}
-                                disabled={!selectedDayHasUnsavedChanges}
-                            >
-                                Save
-                            </button>
-                            <button
-                                type="button"
-                                className="tracking-settings-button"
-                                aria-label="Open time tracking settings"
-                                onClick={handleOpenSettings}
-                            >
-                                {"\u2699"}
-                            </button>
-                        </div>
-                    </div>
-                </header>
-
-                {apiErrorMessage ? (
-                    <div className="tracking-status-banner tracking-status-banner-error">
-                        {apiErrorMessage}
-                    </div>
-                ) : null}
-
-                <div className="tracking-content-grid">
+                <div className="tracking-right-column">
                     <PlaceholderPanel title="Worklog Entries" className="tracking-worklog-panel">
                         <WorklogEntriesTable
                             key={selectedDate}
@@ -635,84 +622,96 @@ export default function TimeTrackingPage({ onLogout, onNavigate }) {
                         />
                     </PlaceholderPanel>
                 </div>
+            </div>
 
-                {settingsOpen && (
-                    <div className="tracking-modal-overlay" role="presentation">
-                        <div className="tracking-modal" role="dialog" aria-modal="true" aria-labelledby="tracking-settings-title">
-                            <div className="tracking-modal-header">
-                                <h3 id="tracking-settings-title">Settings</h3>
-                            </div>
-                            <div className="tracking-modal-body">
-                                <label className="tracking-modal-field">
-                                    <span>Daily hours limit</span>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        step="0.25"
-                                        value={settingsDraftLimit}
-                                        onChange={event => setSettingsDraftLimit(event.target.value)}
-                                    />
-                                </label>
-                                {settingsError ? (
-                                    <div className="tracking-modal-error">{settingsError}</div>
-                                ) : null}
-                            </div>
-                            <div className="tracking-modal-actions">
-                                <button type="button" className="tracking-modal-button" onClick={handleApplySettings}>
-                                    Apply
-                                </button>
-                                <button type="button" className="tracking-modal-button tracking-modal-button-secondary" onClick={() => { setSettingsOpen(false); setSettingsError(""); }}>
-                                    Cancel
-                                </button>
-                            </div>
+            {settingsOpen && (
+                <div className="tracking-modal-overlay" role="presentation">
+                    <div className="tracking-modal" role="dialog" aria-modal="true" aria-labelledby="tracking-settings-title">
+                        <div className="tracking-modal-header">
+                            <h3 id="tracking-settings-title">Settings</h3>
+                        </div>
+                        <div className="tracking-modal-body">
+                            <label className="tracking-modal-field">
+                                <span>Daily hours limit</span>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="0.25"
+                                    value={settingsDraftLimit}
+                                    onChange={event => setSettingsDraftLimit(event.target.value)}
+                                />
+                            </label>
+                            {settingsError ? (
+                                <div className="tracking-modal-error">{settingsError}</div>
+                            ) : null}
+                        </div>
+                        <div className="tracking-modal-actions">
+                            <button type="button" className="tracking-modal-button" onClick={handleApplySettings}>
+                                Apply
+                            </button>
+                            <button
+                                type="button"
+                                className="tracking-modal-button tracking-modal-button-secondary"
+                                onClick={() => {
+                                    setSettingsOpen(false);
+                                    setSettingsError("");
+                                }}
+                            >
+                                Cancel
+                            </button>
                         </div>
                     </div>
-                )}
+                </div>
+            )}
 
-                {validationDialogOpen && (
-                    <div className="tracking-modal-overlay" role="presentation">
-                        <div className="tracking-modal tracking-modal-confirm" role="dialog" aria-modal="true" aria-labelledby="tracking-validation-title">
-                            <div className="tracking-modal-header">
-                                <h3 id="tracking-validation-title">Validation errors</h3>
-                            </div>
-                            <div className="tracking-modal-body">
-                                <ul className="tracking-modal-list">
-                                    {validationIssues.map((issue, index) => (
-                                        <li key={`${issue}-${index}`}>{issue}</li>
-                                    ))}
-                                </ul>
-                            </div>
-                            <div className="tracking-modal-actions">
-                                <button type="button" className="tracking-modal-button" onClick={() => setValidationDialogOpen(false)}>
-                                    OK
-                                </button>
-                            </div>
+            {validationDialogOpen && (
+                <div className="tracking-modal-overlay" role="presentation">
+                    <div className="tracking-modal tracking-modal-confirm" role="dialog" aria-modal="true" aria-labelledby="tracking-validation-title">
+                        <div className="tracking-modal-header">
+                            <h3 id="tracking-validation-title">Validation errors</h3>
+                        </div>
+                        <div className="tracking-modal-body">
+                            <ul className="tracking-modal-list">
+                                {validationIssues.map((issue, index) => (
+                                    <li key={`${issue}-${index}`}>{issue}</li>
+                                ))}
+                            </ul>
+                        </div>
+                        <div className="tracking-modal-actions">
+                            <button type="button" className="tracking-modal-button" onClick={() => setValidationDialogOpen(false)}>
+                                OK
+                            </button>
                         </div>
                     </div>
-                )}
-                {dateSwitchConfirmOpen && (
-                    <div className="tracking-modal-overlay" role="presentation">
-                        <div className="tracking-modal tracking-modal-confirm" role="dialog" aria-modal="true" aria-labelledby="tracking-confirm-title">
-                            <div className="tracking-modal-header">
-                                <h3 id="tracking-confirm-title">Unsaved changes</h3>
-                            </div>
-                            <div className="tracking-modal-body">
-                                <p className="tracking-modal-text">
-                                    Есть несохраненные изменения за текущий день. Переключиться на другую дату без сохранения?
-                                </p>
-                            </div>
-                            <div className="tracking-modal-actions">
-                                <button type="button" className="tracking-modal-button" onClick={handleConfirmDateSwitch}>
-                                    Переключиться
-                                </button>
-                                <button type="button" className="tracking-modal-button tracking-modal-button-secondary" onClick={handleCancelDateSwitch}>
-                                    Остаться
-                                </button>
-                            </div>
+                </div>
+            )}
+
+            {dateSwitchConfirmOpen && (
+                <div className="tracking-modal-overlay" role="presentation">
+                    <div className="tracking-modal tracking-modal-confirm" role="dialog" aria-modal="true" aria-labelledby="tracking-confirm-title">
+                        <div className="tracking-modal-header">
+                            <h3 id="tracking-confirm-title">Unsaved changes</h3>
+                        </div>
+                        <div className="tracking-modal-body">
+                            <p className="tracking-modal-text">
+                                Есть несохраненные изменения за текущий день. Переключиться на другую дату без сохранения?
+                            </p>
+                        </div>
+                        <div className="tracking-modal-actions">
+                            <button type="button" className="tracking-modal-button" onClick={handleConfirmDateSwitch}>
+                                Переключиться
+                            </button>
+                            <button
+                                type="button"
+                                className="tracking-modal-button tracking-modal-button-secondary"
+                                onClick={handleCancelDateSwitch}
+                            >
+                                Остаться
+                            </button>
                         </div>
                     </div>
-                )}
-            </main>
+                </div>
+            )}
         </div>
     );
 }

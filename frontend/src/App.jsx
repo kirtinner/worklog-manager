@@ -1,45 +1,58 @@
 import { useState } from "react";
-import Dashboard from "./pages/Dashboard";
-import CalendarPage from "./pages/CalendarPage";
+import AppNavigationShell from "./components/AppNavigationShell";
+import ClientsPage from "./pages/ClientsPage";
 import LoginPage from "./pages/LoginPage";
+import OrganizationsPage from "./pages/OrganizationsPage";
+import ProjectsPage from "./pages/ProjectsPage";
+import ReportsPage from "./pages/ReportsPage";
+import TasksPage from "./pages/TasksPage";
 import TimeTrackingPage from "./pages/TimeTrackingPage";
 
 function App() {
-  const [isAuth, setIsAuth] = useState(
-      !!localStorage.getItem("token")
-  );
-  const [page, setPage] = useState("dashboard");
+    const [isAuth, setIsAuth] = useState(!!localStorage.getItem("token"));
+    const [page, setPage] = useState("time-tracking");
 
-  const logout = () => {
-      localStorage.removeItem("token");
-      setIsAuth(false);
-      setPage("dashboard");
-   };
+    const logout = () => {
+        localStorage.removeItem("token");
+        setIsAuth(false);
+        setPage("time-tracking");
+    };
 
-  return (
-      <div>
-        {isAuth ? (
-            page === "time-tracking" ? (
-                <TimeTrackingPage
-                    onLogout={logout}
-                    onNavigate={setPage}
-                />
-            ) : page === "calendar" ? (
-                <CalendarPage
-                    onLogout={logout}
-                    onNavigate={setPage}
-                />
+    const renderPage = () => {
+        switch (page) {
+            case "time-tracking":
+                return <TimeTrackingPage />;
+            case "reports":
+                return <ReportsPage />;
+            case "clients":
+                return <ClientsPage />;
+            case "projects":
+                return <ProjectsPage />;
+            case "tasks":
+                return <TasksPage />;
+            case "organizations":
+                return <OrganizationsPage />;
+            default:
+                return <TimeTrackingPage />;
+        }
+    };
+
+    return (
+        <div>
+            {isAuth ? (
+                <AppNavigationShell activePage={page} onNavigate={setPage} onLogout={logout}>
+                    {renderPage()}
+                </AppNavigationShell>
             ) : (
-                <Dashboard
-                    onLogout={logout}
-                    onNavigate={setPage}
+                <LoginPage
+                    onLogin={() => {
+                        setIsAuth(true);
+                        setPage("time-tracking");
+                    }}
                 />
-            )
-        ) : (
-            <LoginPage onLogin={() => setIsAuth(true)} />
-        )}
-      </div>
-  );
+            )}
+        </div>
+    );
 }
 
 export default App;
