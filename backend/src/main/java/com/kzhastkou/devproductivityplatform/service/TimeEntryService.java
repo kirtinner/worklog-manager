@@ -11,6 +11,7 @@ import com.kzhastkou.devproductivityplatform.repository.DeveloperRepository;
 import com.kzhastkou.devproductivityplatform.repository.TaskRepository;
 import com.kzhastkou.devproductivityplatform.repository.TimeEntryRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +22,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class TimeEntryService {
 
     private final TimeEntryRepository repository;
@@ -31,6 +33,8 @@ public class TimeEntryService {
     public TimeEntryResponse create(TimeEntryRequest request, Long userId) {
         Developer dev = getDeveloper(userId);
         Task task = resolveTask(request.getTaskId(), dev);
+        logRequestScope("create", request, task, dev);
+        validateRequestScope(request, task);
 
         if (request.getHours() <= 0 || request.getHours() > 24) {
             throw new RuntimeException("Hours must be between 0 and 24");
@@ -42,7 +46,7 @@ public class TimeEntryService {
                 .comment(request.getComment())
                 .developer(dev)
                 .task(task)
-                .organization(dev.getOrganization())
+                .organization(task.getOrganization())
                 .build();
 
         TimeEntry saved = repository.save(entry);
@@ -94,7 +98,7 @@ public class TimeEntryService {
                             .comment(request.getComment())
                             .developer(dev)
                             .task(task)
-                            .organization(dev.getOrganization())
+                            .organization(task.getOrganization())
                             .build();
                 })
                 .toList();
@@ -117,19 +121,29 @@ public class TimeEntryService {
         }
 
         Task task = resolveTask(request.getTaskId(), entry.getDeveloper());
+        logRequestScope("update", request, task, entry.getDeveloper());
+        validateRequestScope(request, task);
 
         entry.setDate(request.getDate());
         entry.setHours(request.getHours());
         entry.setComment(request.getComment());
         entry.setTask(task);
+        entry.setOrganization(task.getOrganization());
 
         TimeEntry saved = repository.save(entry);
         return toResponse(saved);
     }
 
     @Transactional
-    public void delete(Long id) {
-        repository.deleteById(id);
+    public void delete(Long id, Long userId) {
+        TimeEntry entry = repository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Time entry not found"));
+
+        if (!entry.getDeveloper().getId().equals(userId)) {
+            throw new RuntimeException("Access denied");
+        }
+
+        repository.delete(entry);
     }
 
     private Developer getDeveloper(Long userId) {
@@ -141,8 +155,8 @@ public class TimeEntryService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new NotFoundException("Task not found"));
 
-        if (!task.getOrganization().getId().equals(developer.getOrganization().getId())) {
-            throw new NotFoundException("Cross-organization access is forbidden");
+        if (task.getDeveloper() != null && !task.getDeveloper().getId().equals(developer.getId())) {
+            throw new NotFoundException("Task is not available for the current user");
         }
 
         return task;
@@ -158,6 +172,37 @@ public class TimeEntryService {
         }
     }
 
+    private void validateRequestScope(TimeEntryRequest request, Task task) {
+        validateClient(request.getClientId(), task);
+
+        if (request.getOrganizationId() == null) {
+            throw new RuntimeException("Organization is required");
+        }
+
+        if (task.getClient().getOrganization() == null
+                || !task.getClient().getOrganization().getId().equals(request.getOrganizationId())) {
+            throw new RuntimeException("Client does not belong to the selected organization");
+        }
+
+        if (!task.getOrganization().getId().equals(request.getOrganizationId())) {
+            throw new RuntimeException("Task does not belong to the selected organization");
+        }
+    }
+
+    private void logRequestScope(String operation, TimeEntryRequest request, Task task, Developer developer) {
+        log.info(
+                "TimeEntry {} scope: request.organizationId={}, request.clientId={}, taskId={}, task.organizationId={}, task.clientId={}, client.organizationId={}, developer.organizationId={}",
+                operation,
+                request.getOrganizationId(),
+                request.getClientId(),
+                request.getTaskId(),
+                task.getOrganization() != null ? task.getOrganization().getId() : null,
+                task.getClient() != null ? task.getClient().getId() : null,
+                task.getClient() != null && task.getClient().getOrganization() != null ? task.getClient().getOrganization().getId() : null,
+                developer.getOrganization() != null ? developer.getOrganization().getId() : null
+        );
+    }
+
     private TimeEntryResponse toResponse(TimeEntry entry) {
         Double totalTaskHours = repository.findByDeveloperIdAndTaskId(entry.getDeveloper().getId(), entry.getTask().getId())
                 .stream()
@@ -167,6 +212,8 @@ public class TimeEntryService {
         return TimeEntryResponse.builder()
                 .id(entry.getId())
                 .date(entry.getDate())
+                .organizationId(entry.getTask().getOrganization().getId())
+                .organizationName(entry.getTask().getOrganization().getShortName())
                 .clientId(entry.getTask().getClient().getId())
                 .clientName(entry.getTask().getClient().getShortName())
                 .hours(entry.getHours())

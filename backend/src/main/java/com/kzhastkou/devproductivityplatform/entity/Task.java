@@ -29,6 +29,9 @@ public class Task {
     private Double estimatedHours;
 
     @Column(length = 2000)
+    private String comment;
+
+    @Column(length = 2000)
     private String description;
 
     @Column(length = 5000)

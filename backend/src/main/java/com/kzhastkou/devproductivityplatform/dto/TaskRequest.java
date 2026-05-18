@@ -27,6 +27,9 @@ public class TaskRequest {
     private String name;
 
     @Size(max = 2000)
+    private String comment;
+
+    @Size(max = 2000)
     private String description;
 
     @Size(max = 5000)

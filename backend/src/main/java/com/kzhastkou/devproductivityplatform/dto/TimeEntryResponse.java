@@ -11,6 +11,8 @@ public class TimeEntryResponse {
 
     private Long id;
     private LocalDate date;
+    private Long organizationId;
+    private String organizationName;
     private Long clientId;
     private String clientName;
     private Double hours;

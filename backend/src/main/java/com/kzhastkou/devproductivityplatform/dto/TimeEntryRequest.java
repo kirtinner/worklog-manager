@@ -12,8 +12,8 @@ public class TimeEntryRequest {
     private LocalDate date;
 
     @NotNull
-    @Min(1)
-    @Max(24)
+    @DecimalMin(value = "0.0", inclusive = false)
+    @DecimalMax("24.0")
     private Double hours;
 
     @Size(max = 2000)
@@ -24,4 +24,10 @@ public class TimeEntryRequest {
 
     @NotNull
     private Long taskId;
+
+    @NotNull
+    private Long clientId;
+
+    @NotNull
+    private Long organizationId;
 }

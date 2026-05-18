@@ -51,12 +51,12 @@ public class TimeEntryController {
 
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id) {
-        timeEntryService.delete(id);
+        timeEntryService.delete(id, resolveCurrentUserId());
     }
 
     @PutMapping("/{id}")
     public TimeEntryResponse update(@PathVariable Long id,
-                                    @RequestBody TimeEntryRequest request) {
+                                    @Valid @RequestBody TimeEntryRequest request) {
         return timeEntryService.update(id, request, resolveCurrentUserId());
     }
 

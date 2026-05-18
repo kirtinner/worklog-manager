@@ -18,6 +18,7 @@ public class TaskResponse {
     private String projectName;
     private String taskNumber;
     private String name;
+    private String comment;
     private String description;
     private String implementationDetails;
     private Double estimatedHours;
