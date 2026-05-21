@@ -31,23 +31,14 @@ function mapTask(task) {
     };
 }
 
-function uniqueClientsFromTasks(tasks) {
-    const clientsById = new Map();
-
-    tasks.forEach(task => {
-        const clientId = task.clientId ?? task.client?.id ?? null;
-        if (clientId == null || clientsById.has(clientId)) {
-            return;
-        }
-
-        clientsById.set(clientId, {
-            id: clientId,
-            organizationId: task.organizationId ?? task.organization?.id ?? null,
-            name: task.clientName ?? task.client?.shortName ?? task.client?.fullName ?? ""
-        });
-    });
-
-    return [...clientsById.values()];
+function mapClient(client) {
+    return {
+        id: client.id,
+        organizationId: client.organizationId ?? client.organization?.id ?? null,
+        name: client.shortName ?? client.name ?? client.fullName ?? "",
+        shortName: client.shortName ?? "",
+        fullName: client.fullName ?? client.name ?? ""
+    };
 }
 
 let tasksRequestPromise = null;
@@ -75,6 +66,11 @@ export async function getTimeEntriesByMonth(year, month) {
         params: { year, month: month + 1 }
     });
 
+    return response.data.map(mapTimeEntry);
+}
+
+export async function getTimeEntriesByTask(taskId) {
+    const response = await api.get(`/tasks/${taskId}/time-entries`);
     return response.data.map(mapTimeEntry);
 }
 
@@ -108,8 +104,8 @@ export async function deleteTimeEntry(id) {
 }
 
 export async function getClients() {
-    const response = await loadTasksResponse();
-    return uniqueClientsFromTasks(response.data);
+    const response = await api.get("/clients");
+    return response.data.map(mapClient);
 }
 
 export async function getTasks() {

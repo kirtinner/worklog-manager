@@ -88,7 +88,7 @@ function WorklogEntryModal({
     onCancel
 }) {
     const availableClients = draftEntry.organizationId == null
-        ? []
+        ? clients
         : clients.filter(client => sameId(client.organizationId, draftEntry.organizationId));
     const availableTasks = draftEntry.clientId == null
         ? []
@@ -120,50 +120,71 @@ function WorklogEntryModal({
                     <div className="tracking-modal-fields">
                         <label className="tracking-modal-field">
                             <span>Organization</span>
-                            <select
-                                value={String(draftEntry.organizationId ?? "")}
-                                onChange={event => onChange("organization", event.target.value)}
-                            >
-                                <option value=""></option>
-                                {organizations.map(organization => (
-                                    <option key={organization.id} value={String(organization.id)}>
-                                        {organization.shortName}
-                                    </option>
-                                ))}
-                            </select>
+                            <div className="selector-clear-control">
+                                <select
+                                    value={String(draftEntry.organizationId ?? "")}
+                                    onChange={event => onChange("organization", event.target.value)}
+                                >
+                                    <option value=""></option>
+                                    {organizations.map(organization => (
+                                        <option key={organization.id} value={String(organization.id)}>
+                                            {organization.shortName}
+                                        </option>
+                                    ))}
+                                </select>
+                                {draftEntry.organizationId != null && (
+                                    <button type="button" className="selector-clear-button" onClick={() => onChange("organization", "")} aria-label="Clear organization">
+                                        ×
+                                    </button>
+                                )}
+                            </div>
                         </label>
 
                         <label className="tracking-modal-field">
                             <span>Client</span>
-                            <select
-                                value={String(draftEntry.clientId ?? "")}
-                                onChange={event => onChange("client", event.target.value)}
-                                disabled={availableClients.length === 0}
-                            >
-                                <option value=""></option>
-                                {availableClients.map(client => (
-                                    <option key={client.id} value={String(client.id)}>
-                                        {client.name}
-                                    </option>
-                                ))}
-                            </select>
+                            <div className="selector-clear-control">
+                                <select
+                                    value={String(draftEntry.clientId ?? "")}
+                                    onChange={event => onChange("client", event.target.value)}
+                                    disabled={availableClients.length === 0}
+                                >
+                                    <option value=""></option>
+                                    {availableClients.map(client => (
+                                        <option key={client.id} value={String(client.id)}>
+                                            {client.name}
+                                        </option>
+                                    ))}
+                                </select>
+                                {draftEntry.clientId != null && (
+                                    <button type="button" className="selector-clear-button" onClick={() => onChange("client", "")} aria-label="Clear client">
+                                        ×
+                                    </button>
+                                )}
+                            </div>
                         </label>
 
                         <label className="tracking-modal-field tracking-modal-worklog-task-field">
                             <span>Task</span>
-                            <select
-                                value={String(draftEntry.taskId ?? "")}
-                                onChange={event => onChange("task", event.target.value)}
-                                disabled={availableTasks.length === 0}
-                                title={selectedTaskName}
-                            >
-                                <option value=""></option>
-                                {availableTasks.map(task => (
-                                    <option key={task.id} value={String(task.id)} title={task.name}>
-                                        {task.name}
-                                    </option>
-                                ))}
-                            </select>
+                            <div className="selector-clear-control">
+                                <select
+                                    value={String(draftEntry.taskId ?? "")}
+                                    onChange={event => onChange("task", event.target.value)}
+                                    disabled={availableTasks.length === 0}
+                                    title={selectedTaskName}
+                                >
+                                    <option value=""></option>
+                                    {availableTasks.map(task => (
+                                        <option key={task.id} value={String(task.id)} title={task.name}>
+                                            {task.name}
+                                        </option>
+                                    ))}
+                                </select>
+                                {draftEntry.taskId != null && (
+                                    <button type="button" className="selector-clear-button" onClick={() => onChange("task", "")} aria-label="Clear task">
+                                        ×
+                                    </button>
+                                )}
+                            </div>
                         </label>
 
                         <label className="tracking-modal-field">
@@ -438,11 +459,7 @@ export default function TimeTrackingPage({
                 setDraftEntry(current => (current ? {
                     ...current,
                     organizationId: null,
-                    organizationName: "",
-                    clientId: null,
-                    clientName: "",
-                    taskId: null,
-                    taskName: ""
+                    organizationName: ""
                 } : current));
                 return;
             }
@@ -450,15 +467,24 @@ export default function TimeTrackingPage({
             const organizationId = toOptionalNumber(value);
             const selectedOrganization = organizations.find(organization => sameId(organization.id, organizationId));
 
-            setDraftEntry(current => (current ? {
-                ...current,
-                organizationId: selectedOrganization?.id ?? null,
-                organizationName: selectedOrganization?.shortName ?? "",
-                clientId: null,
-                clientName: "",
-                taskId: null,
-                taskName: ""
-            } : current));
+            setDraftEntry(current => {
+                if (!current) {
+                    return current;
+                }
+
+                const currentClient = clients.find(client => sameId(client.id, current.clientId));
+                const keepClient = currentClient && sameId(currentClient.organizationId, organizationId);
+
+                return {
+                    ...current,
+                    organizationId: selectedOrganization?.id ?? null,
+                    organizationName: selectedOrganization?.shortName ?? "",
+                    clientId: keepClient ? current.clientId : null,
+                    clientName: keepClient ? current.clientName : "",
+                    taskId: keepClient ? current.taskId : null,
+                    taskName: keepClient ? current.taskName : ""
+                };
+            });
             return;
         }
 
@@ -467,9 +493,7 @@ export default function TimeTrackingPage({
                 setDraftEntry(current => (current ? {
                     ...current,
                     clientId: null,
-                    clientName: "",
-                    taskId: null,
-                    taskName: ""
+                    clientName: ""
                 } : current));
                 return;
             }

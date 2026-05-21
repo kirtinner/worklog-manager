@@ -178,21 +178,21 @@
 }
 
 .worklog-table tbody tr.worklog-row-selected td {
-  background: #f7f4ee;
-  box-shadow: inset 0 1px 0 #e8ddd0, inset 0 -1px 0 #e8ddd0;
+  background: var(--app-selection-bg);
+  box-shadow: inset 0 1px 0 #c9ddf4, inset 0 -1px 0 #c9ddf4;
 }
 
 .worklog-table tbody tr.worklog-row-selected td:first-child {
-  box-shadow: inset 3px 0 0 #a58a68, inset 0 1px 0 #e8ddd0, inset 0 -1px 0 #e8ddd0;
+  box-shadow: inset 3px 0 0 var(--app-selection-accent), inset 0 1px 0 #c9ddf4, inset 0 -1px 0 #c9ddf4;
 }
 
 .worklog-table tbody tr.worklog-row-editing td {
-  background: #f7f4ee;
-  box-shadow: inset 0 1px 0 #e8ddd0, inset 0 -1px 0 #e8ddd0;
+  background: var(--app-selection-bg);
+  box-shadow: inset 0 1px 0 #c9ddf4, inset 0 -1px 0 #c9ddf4;
 }
 
 .worklog-table tbody tr.worklog-row-editing td:first-child {
-  box-shadow: inset 3px 0 0 #a58a68, inset 0 1px 0 #e8ddd0, inset 0 -1px 0 #e8ddd0;
+  box-shadow: inset 3px 0 0 var(--app-selection-accent), inset 0 1px 0 #c9ddf4, inset 0 -1px 0 #c9ddf4;
 }
 
 .worklog-table tbody tr.worklog-row-validation-error td {
@@ -303,7 +303,8 @@
 }
 
 .worklog-inline-select:focus {
-  outline: 2px solid #d9e7fb;
+  border-color: var(--app-selection-border);
+  outline: 2px solid var(--app-focus-ring);
   outline-offset: 1px;
 }
 
@@ -341,7 +342,8 @@
 }
 
 .worklog-hours-input:focus {
-  outline: 2px solid #d9e7fb;
+  border-color: var(--app-selection-border);
+  outline: 2px solid var(--app-focus-ring);
   outline-offset: 1px;
 }
 
@@ -491,12 +493,19 @@
   color: #344054;
   font: inherit;
   font-size: 13px;
+  font-weight: 400;
   line-height: 1.5;
   resize: none;
   outline: none;
   box-sizing: border-box;
   white-space: pre-wrap;
   overflow: auto;
+}
+
+.task-details-textarea:focus {
+  border-color: var(--app-selection-border);
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 1px;
 }
 
 .task-details-textarea:disabled {
@@ -567,3 +576,4 @@
 .organizations-delete-button-separated {
   margin-left: 6px;
 }
+

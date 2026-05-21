@@ -22,6 +22,7 @@ public class TaskResponse {
     private String description;
     private String implementationDetails;
     private Double estimatedHours;
+    private Double actualHours;
     private Long softwareProductId;
     private String softwareProductName;
     private Boolean completed;

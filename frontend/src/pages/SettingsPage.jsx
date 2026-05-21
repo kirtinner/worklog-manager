@@ -156,18 +156,25 @@ export default function SettingsPage({
 
                             <label className="tracking-modal-field">
                                 <span>Current Organization</span>
-                                <select
-                                    value={settingsDraftOrganizationId}
-                                    onChange={event => setSettingsDraftOrganizationId(event.target.value)}
-                                    disabled={userSettingsLoading || settingsSaving}
-                                >
-                                    <option value=""></option>
-                                    {organizations.map(organization => (
-                                        <option key={organization.id} value={String(organization.id)}>
-                                            {organization.shortName}
-                                        </option>
-                                    ))}
-                                </select>
+                                <div className="selector-clear-control">
+                                    <select
+                                        value={settingsDraftOrganizationId}
+                                        onChange={event => setSettingsDraftOrganizationId(event.target.value)}
+                                        disabled={userSettingsLoading || settingsSaving}
+                                    >
+                                        <option value=""></option>
+                                        {organizations.map(organization => (
+                                            <option key={organization.id} value={String(organization.id)}>
+                                                {organization.shortName}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {settingsDraftOrganizationId !== "" && (
+                                        <button type="button" className="selector-clear-button" onClick={() => setSettingsDraftOrganizationId("")} aria-label="Clear current organization">
+                                            ×
+                                        </button>
+                                    )}
+                                </div>
                             </label>
                         </div>
 

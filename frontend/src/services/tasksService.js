@@ -11,6 +11,7 @@ function normalizeTask(task) {
         description: task.description ?? "",
         implementation_details: task.implementationDetails ?? task.implementation_details ?? "",
         estimated_hours: Number(task.estimatedHours ?? task.estimated_hours ?? 0),
+        actual_hours: Number(task.actualHours ?? task.actual_hours ?? 0),
         organizationId: task.organizationId ?? null,
         clientId: task.clientId ?? null,
         projectId: task.projectId ?? null,
@@ -49,6 +50,10 @@ export async function createTask(payload) {
 export async function updateTask(id, payload) {
     const response = await api.put(`/tasks/${id}`, toTaskRequest(payload));
     return normalizeTask(response.data);
+}
+
+export async function checkTaskCanDelete(id) {
+    await api.get(`/tasks/${id}/delete-check`);
 }
 
 export async function deleteTask(id) {

@@ -41,8 +41,8 @@ function validateProject(project) {
 
 function getFirstVisibleProjectId(sourceProjects, organizationId, clientId) {
     return sourceProjects.find(project =>
-        project.organizationId === organizationId
-        && project.clientId === clientId
+        (organizationId == null || project.organizationId === organizationId)
+        && (clientId == null || project.clientId === clientId)
     )?.id ?? null;
 }
 
@@ -66,21 +66,24 @@ export default function ProjectsPage({
     const handleCancelRef = useRef(() => {});
 
     const filteredClients = useMemo(
-        () => clients.filter(client => client.organizationId === selectedOrganizationId),
+        () => selectedOrganizationId == null
+            ? clients
+            : clients.filter(client => client.organizationId === selectedOrganizationId),
         [clients, selectedOrganizationId]
     );
 
     const filteredProjects = useMemo(
         () => projects.filter(project =>
-            project.organizationId === selectedOrganizationId
-            && project.clientId === selectedClientId
+            (selectedOrganizationId == null || project.organizationId === selectedOrganizationId)
+            && (selectedClientId == null || project.clientId === selectedClientId)
         ),
         [projects, selectedClientId, selectedOrganizationId]
     );
 
+    const draftOrganizationId = draftProject?.organizationId ?? null;
     const draftClients = useMemo(
-        () => clients.filter(client => client.organizationId === draftProject?.organizationId),
-        [clients, draftProject?.organizationId]
+        () => clients.filter(client => draftOrganizationId == null || client.organizationId === draftOrganizationId),
+        [clients, draftOrganizationId]
     );
 
     const selectedProject = filteredProjects.find(project => project.id === selectedProjectId) ?? null;
@@ -201,12 +204,10 @@ export default function ProjectsPage({
 
     const handleDraftOrganizationChange = (nextOrganizationId) => {
         const parsedOrganizationId = nextOrganizationId === "" ? null : Number(nextOrganizationId);
-        const nextClients = clients.filter(client => client.organizationId === parsedOrganizationId);
 
         setDraftProject(current => (current ? {
             ...current,
-            organizationId: parsedOrganizationId,
-            clientId: nextClients[0]?.id ?? null
+            organizationId: parsedOrganizationId
         } : current));
     };
 
@@ -216,7 +217,17 @@ export default function ProjectsPage({
     };
 
     const handleOrganizationChange = (nextOrganizationId) => {
+        if (nextOrganizationId === "") {
+            handleClearOrganizationFilter();
+            return;
+        }
+
         applyFilterSelection(Number(nextOrganizationId));
+        closeTransientDialogs();
+    };
+
+    const handleClearOrganizationFilter = () => {
+        setSelectedOrganizationId(null);
         closeTransientDialogs();
     };
 
@@ -225,6 +236,11 @@ export default function ProjectsPage({
 
         setSelectedClientId(parsedClientId);
         setSelectedProjectId(getFirstVisibleProjectId(projects, selectedOrganizationId, parsedClientId));
+        closeTransientDialogs();
+    };
+
+    const handleClearClientFilter = () => {
+        setSelectedClientId(null);
         closeTransientDialogs();
     };
 
@@ -379,41 +395,53 @@ export default function ProjectsPage({
                     <label className="clients-filter-label" htmlFor="projects-organization-select">
                         Organization
                     </label>
-                    <select
-                        id="projects-organization-select"
-                        className="clients-filter-select projects-filter-select"
-                        value={String(selectedOrganizationId ?? "")}
-                        onChange={event => handleOrganizationChange(event.target.value)}
-                    >
-                        {organizations.map(organization => (
-                            <option key={organization.id} value={String(organization.id)}>
-                                {organization.shortName}
-                            </option>
-                        ))}
-                    </select>
+                    <div className="selector-clear-control">
+                        <select
+                            id="projects-organization-select"
+                            className="clients-filter-select projects-filter-select"
+                            value={String(selectedOrganizationId ?? "")}
+                            onChange={event => handleOrganizationChange(event.target.value)}
+                        >
+                            <option value=""></option>
+                            {organizations.map(organization => (
+                                <option key={organization.id} value={String(organization.id)}>
+                                    {organization.shortName}
+                                </option>
+                            ))}
+                        </select>
+                        {selectedOrganizationId != null && (
+                            <button type="button" className="selector-clear-button" onClick={handleClearOrganizationFilter} aria-label="Clear organization filter">
+                                ×
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 <div className="projects-filter-field">
                     <label className="clients-filter-label" htmlFor="projects-client-select">
                         Client
                     </label>
-                    <select
-                        id="projects-client-select"
-                        className="clients-filter-select projects-filter-select"
-                        value={String(selectedClientId ?? "")}
-                        onChange={event => handleClientChange(event.target.value)}
-                        disabled={filteredClients.length === 0}
-                    >
-                        {filteredClients.length === 0 ? (
+                    <div className="selector-clear-control">
+                        <select
+                            id="projects-client-select"
+                            className="clients-filter-select projects-filter-select"
+                            value={String(selectedClientId ?? "")}
+                            onChange={event => handleClientChange(event.target.value)}
+                            disabled={filteredClients.length === 0}
+                        >
                             <option value=""></option>
-                        ) : (
-                            filteredClients.map(client => (
+                            {filteredClients.map(client => (
                                 <option key={client.id} value={String(client.id)}>
                                     {client.shortName}
                                 </option>
-                            ))
+                            ))}
+                        </select>
+                        {selectedClientId != null && (
+                            <button type="button" className="selector-clear-button" onClick={handleClearClientFilter} aria-label="Clear client filter">
+                                ×
+                            </button>
                         )}
-                    </select>
+                    </div>
                 </div>
             </section>
 
@@ -488,35 +516,47 @@ export default function ProjectsPage({
                             <div className="tracking-modal-fields">
                                 <label className="tracking-modal-field">
                                     <span>Organization</span>
-                                    <select
-                                        value={String(draftProject.organizationId ?? "")}
-                                        onChange={event => handleDraftOrganizationChange(event.target.value)}
-                                    >
-                                        <option value=""></option>
-                                        {organizations.map(organization => (
-                                            <option key={organization.id} value={String(organization.id)}>
-                                                {organization.shortName}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <div className="selector-clear-control">
+                                        <select
+                                            value={String(draftProject.organizationId ?? "")}
+                                            onChange={event => handleDraftOrganizationChange(event.target.value)}
+                                        >
+                                            <option value=""></option>
+                                            {organizations.map(organization => (
+                                                <option key={organization.id} value={String(organization.id)}>
+                                                    {organization.shortName}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        {draftProject.organizationId != null && (
+                                            <button type="button" className="selector-clear-button" onClick={() => handleDraftOrganizationChange("")} aria-label="Clear organization">
+                                                ×
+                                            </button>
+                                        )}
+                                    </div>
                                 </label>
 
                                 <label className="tracking-modal-field">
                                     <span>Client</span>
-                                    <select
-                                        value={String(draftProject.clientId ?? "")}
-                                        onChange={event => handleDraftClientChange(event.target.value)}
-                                        disabled={draftClients.length === 0}
-                                    >
-                                        <option value="">
-                                            {""}
-                                        </option>
-                                        {draftClients.map(client => (
-                                            <option key={client.id} value={String(client.id)}>
-                                                {client.shortName}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <div className="selector-clear-control">
+                                        <select
+                                            value={String(draftProject.clientId ?? "")}
+                                            onChange={event => handleDraftClientChange(event.target.value)}
+                                            disabled={draftClients.length === 0}
+                                        >
+                                            <option value=""></option>
+                                            {draftClients.map(client => (
+                                                <option key={client.id} value={String(client.id)}>
+                                                    {client.shortName}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        {draftProject.clientId != null && (
+                                            <button type="button" className="selector-clear-button" onClick={() => handleDraftClientChange("")} aria-label="Clear client">
+                                                ×
+                                            </button>
+                                        )}
+                                    </div>
                                 </label>
 
                                 <label className="tracking-modal-field">

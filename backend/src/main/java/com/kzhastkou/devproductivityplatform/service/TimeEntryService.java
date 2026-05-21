@@ -3,6 +3,7 @@ package com.kzhastkou.devproductivityplatform.service;
 import com.kzhastkou.devproductivityplatform.dto.TimeEntryDayRequest;
 import com.kzhastkou.devproductivityplatform.dto.TimeEntryRequest;
 import com.kzhastkou.devproductivityplatform.dto.TimeEntryResponse;
+import com.kzhastkou.devproductivityplatform.dto.TaskTimeEntryResponse;
 import com.kzhastkou.devproductivityplatform.entity.Developer;
 import com.kzhastkou.devproductivityplatform.entity.Task;
 import com.kzhastkou.devproductivityplatform.entity.TimeEntry;
@@ -79,6 +80,27 @@ public class TimeEntryService {
         return repository.findByDeveloperIdAndDateBetweenOrderByDateAscIdAsc(developerId, from, to)
                 .stream()
                 .map(this::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<TaskTimeEntryResponse> getByTask(Long taskId, Long userId) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new NotFoundException("Task not found"));
+        Developer developer = getDeveloper(userId);
+
+        if (task.getDeveloper() != null && !task.getDeveloper().getId().equals(developer.getId())) {
+            throw new NotFoundException("Task is not available for the current user");
+        }
+
+        return repository.findByDeveloperIdAndTaskId(developer.getId(), taskId)
+                .stream()
+                .sorted(Comparator.comparing(TimeEntry::getDate).thenComparing(TimeEntry::getId))
+                .map(entry -> TaskTimeEntryResponse.builder()
+                        .date(entry.getDate())
+                        .hours(entry.getHours())
+                        .comment(entry.getComment())
+                        .build())
                 .toList();
     }
 

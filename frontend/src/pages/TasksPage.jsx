@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getClients as loadClients } from "../services/clientsService";
 import { getProjects as loadProjects } from "../services/projectsService";
 import {
+    checkTaskCanDelete,
     createTask as apiCreateTask,
     deleteTask as apiDeleteTask,
     getTasks as loadTasks,
     updateTask as apiUpdateTask
 } from "../services/tasksService";
+import { getTimeEntriesByTask } from "../services/timeTrackingService";
 
 function todayIso() {
     return new Date().toISOString().slice(0, 10);
@@ -23,6 +25,7 @@ function createTaskDraft(context) {
         description: "",
         implementation_details: "",
         estimated_hours: 0,
+        actual_hours: 0,
         softwareProductId: null,
         organizationId: context.organizationId ?? null,
         clientId: context.clientId ?? null,
@@ -80,12 +83,23 @@ function formatDate(value) {
     return `${day}.${month}.${year}`;
 }
 
-function resolveSoftwareProductLabel(softwareProducts, softwareProductId) {
-    return softwareProducts.find(product => sameId(product.id, softwareProductId))?.shortName ?? "";
-}
-
 function resolveClientLabel(clients, clientId) {
     return clients.find(client => sameId(client.id, clientId))?.shortName ?? "";
+}
+
+function shouldHighlightActualHours(actualHours, estimatedHours) {
+    const actual = Number(actualHours);
+    const estimated = Number(estimatedHours);
+
+    if (!Number.isFinite(actual) || !Number.isFinite(estimated)) {
+        return false;
+    }
+
+    if (actual <= 0 || estimated <= 0) {
+        return false;
+    }
+
+    return actual > estimated;
 }
 
 function sameId(left, right) {
@@ -99,6 +113,9 @@ function TaskEditorModal({
     clients,
     projects,
     softwareProducts,
+    taskTimeEntries = [],
+    taskTimeEntriesLoading = false,
+    taskTimeEntriesError = "",
     onDraftChange,
     onOrganizationChange,
     onClientChange,
@@ -109,6 +126,14 @@ function TaskEditorModal({
     onSave,
     onCancel
 }) {
+    const actualHoursValue = Number(draftTask.actual_hours ?? 0);
+    const estimatedHoursValue = Number(draftTask.estimated_hours ?? 0);
+    const taskTimeEntriesTotal = taskTimeEntries.reduce((sum, entry) => sum + Number(entry.hours ?? 0), 0);
+    const modalActualHoursValue = draftTask.id != null && !taskTimeEntriesLoading && !taskTimeEntriesError
+        ? taskTimeEntriesTotal
+        : actualHoursValue;
+    const actualHoursIsOverEstimate = shouldHighlightActualHours(modalActualHoursValue, estimatedHoursValue);
+
     return (
         <div className="tracking-modal-overlay" role="presentation">
             <div
@@ -120,9 +145,9 @@ function TaskEditorModal({
                 <div className="tracking-modal-header">
                     <h3 id="tasks-editor-title">{editorMode === "add" ? "Add Task" : "Edit Task"}</h3>
                 </div>
-                <div className="tracking-modal-body">
+                <div className="tracking-modal-body tracking-modal-task-editor-body">
                     <div className="tasks-editor-grid">
-                        <label className="tracking-modal-field tasks-editor-field tasks-editor-field-checkbox">
+                        <label className="tracking-modal-field tasks-editor-field tasks-editor-field-completed">
                             <span>Completed</span>
                             <input
                                 type="checkbox"
@@ -131,7 +156,7 @@ function TaskEditorModal({
                             />
                         </label>
 
-                        <label className="tracking-modal-field tasks-editor-field">
+                        <label className="tracking-modal-field tasks-editor-field tasks-editor-field-created">
                             <span>Created Date</span>
                             <input
                                 type="date"
@@ -140,16 +165,7 @@ function TaskEditorModal({
                             />
                         </label>
 
-                        <label className="tracking-modal-field tasks-editor-field">
-                            <span>Task Number</span>
-                            <input
-                                type="text"
-                                value={draftTask.task_number ?? ""}
-                                onChange={event => onDraftChange("task_number", event.target.value)}
-                            />
-                        </label>
-
-                        <label className="tracking-modal-field tasks-editor-field">
+                        <label className="tracking-modal-field tasks-editor-field tasks-editor-field-organization">
                             <span>Organization</span>
                             <select
                                 value={String(draftTask.organizationId ?? "")}
@@ -164,7 +180,7 @@ function TaskEditorModal({
                             </select>
                         </label>
 
-                        <label className="tracking-modal-field tasks-editor-field">
+                        <label className="tracking-modal-field tasks-editor-field tasks-editor-field-client">
                             <span>Client</span>
                             <select
                                 value={String(draftTask.clientId ?? "")}
@@ -180,7 +196,7 @@ function TaskEditorModal({
                             </select>
                         </label>
 
-                        <label className="tracking-modal-field tasks-editor-field">
+                        <label className="tracking-modal-field tasks-editor-field tasks-editor-field-project">
                             <span>Project</span>
                             <select
                                 value={String(draftTask.projectId ?? "")}
@@ -196,7 +212,7 @@ function TaskEditorModal({
                             </select>
                         </label>
 
-                        <label className="tracking-modal-field tasks-editor-field">
+                        <label className="tracking-modal-field tasks-editor-field tasks-editor-field-software">
                             <span>Software Product</span>
                             <select
                                 value={String(draftTask.softwareProductId ?? "")}
@@ -206,13 +222,22 @@ function TaskEditorModal({
                                 <option value=""></option>
                                 {softwareProducts.map(product => (
                                     <option key={product.id} value={String(product.id)}>
-                                        {product.shortName} - {product.fullName}
+                                        {product.shortName}
                                     </option>
                                 ))}
                             </select>
                         </label>
 
-                        <label className="tracking-modal-field tasks-editor-field tasks-editor-field-full">
+                        <label className="tracking-modal-field tasks-editor-field tasks-editor-field-task-number">
+                            <span>Task Number</span>
+                            <input
+                                type="text"
+                                value={draftTask.task_number ?? ""}
+                                onChange={event => onDraftChange("task_number", event.target.value)}
+                            />
+                        </label>
+
+                        <label className="tracking-modal-field tasks-editor-field tasks-editor-field-name">
                             <span>Name</span>
                             <input
                                 type="text"
@@ -221,7 +246,18 @@ function TaskEditorModal({
                             />
                         </label>
 
-                        <label className="tracking-modal-field tasks-editor-field">
+                        <label className="tracking-modal-field tasks-editor-field tasks-editor-field-actual">
+                            <span>Actual Hours</span>
+                            <input
+                                type="text"
+                                className={actualHoursIsOverEstimate ? "tasks-hours-danger" : ""}
+                                value={modalActualHoursValue.toFixed(2)}
+                                readOnly
+                                aria-readonly="true"
+                            />
+                        </label>
+
+                        <label className="tracking-modal-field tasks-editor-field tasks-editor-field-estimated">
                             <span>Estimated Hours</span>
                             <input
                                 type="number"
@@ -232,7 +268,7 @@ function TaskEditorModal({
                             />
                         </label>
 
-                        <label className="tracking-modal-field tasks-editor-field tasks-editor-field-full">
+                        <label className="tracking-modal-field tasks-editor-field tasks-editor-field-comment">
                             <span>Comment</span>
                             <textarea
                                 rows="3"
@@ -240,25 +276,62 @@ function TaskEditorModal({
                                 onChange={event => onDraftChange("comment", event.target.value)}
                             />
                         </label>
-
-                        <label className="tracking-modal-field tasks-editor-field tasks-editor-field-full">
-                            <span>Description</span>
-                            <textarea
-                                rows="3"
-                                value={draftTask.description ?? ""}
-                                onChange={event => onDraftChange("description", event.target.value)}
-                            />
-                        </label>
-
-                        <label className="tracking-modal-field tasks-editor-field tasks-editor-field-full">
-                            <span>Implementation Details</span>
-                            <textarea
-                                rows="4"
-                                value={draftTask.implementation_details ?? ""}
-                                onChange={event => onDraftChange("implementation_details", event.target.value)}
-                            />
-                        </label>
                     </div>
+                    <section className="tasks-editor-timesheet">
+                        <div className="tasks-editor-timesheet-header">
+                            <h4>Task Worklog</h4>
+                        </div>
+
+                        {draftTask.id == null ? (
+                            <div className="tasks-editor-timesheet-empty">
+                                Save the task first to view worklog entries.
+                            </div>
+                        ) : taskTimeEntriesLoading ? (
+                            <div className="tasks-editor-timesheet-empty">
+                                Loading worklog entries...
+                            </div>
+                        ) : taskTimeEntriesError ? (
+                            <div className="tracking-modal-error tasks-editor-timesheet-error">
+                                {taskTimeEntriesError}
+                            </div>
+                        ) : (
+                            <div className="tasks-editor-timesheet-table-wrap">
+                                <table className="tasks-editor-timesheet-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th className="tasks-number-cell">Hours</th>
+                                            <th>Entry Comment</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {taskTimeEntries.length === 0 ? (
+                                            <tr>
+                                                <td colSpan="3" className="tasks-editor-timesheet-empty-cell">
+                                                    No worklog entries for this task.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            taskTimeEntries.map(entry => (
+                                                <tr key={entry.id ?? `${entry.date}-${entry.hours}-${entry.comment ?? ""}`}>
+                                                    <td>{formatDate(entry.date)}</td>
+                                                    <td className="tasks-number-cell">{Number(entry.hours ?? 0).toFixed(2)}</td>
+                                                    <td>{entry.comment ?? ""}</td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr>
+                                            <td>Total</td>
+                                            <td className="tasks-number-cell">{taskTimeEntriesTotal.toFixed(2)}</td>
+                                            <td />
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        )}
+                    </section>
                     {softwareProducts.length === 0 ? (
                         <div className="tracking-modal-error">
                             No software products are available. Add software products in Settings.
@@ -294,25 +367,42 @@ export default function TasksPage({
     const [selectedClientId, setSelectedClientId] = useState(null);
     const [selectedProjectId, setSelectedProjectId] = useState(null);
     const [selectedTaskId, setSelectedTaskId] = useState(null);
+    const [showIncompleteOnly, setShowIncompleteOnly] = useState(true);
     const [editorOpen, setEditorOpen] = useState(false);
     const [editorMode, setEditorMode] = useState(null); // "add" | "edit"
     const [draftTask, setDraftTask] = useState(null);
+    const [taskTimeEntries, setTaskTimeEntries] = useState([]);
+    const [taskTimeEntriesLoading, setTaskTimeEntriesLoading] = useState(false);
+    const [taskTimeEntriesError, setTaskTimeEntriesError] = useState("");
     const [validationDialogOpen, setValidationDialogOpen] = useState(false);
     const [validationIssues, setValidationIssues] = useState([]);
     const [warningDialogOpen, setWarningDialogOpen] = useState(false);
     const [warningMessage, setWarningMessage] = useState("");
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const handleCancelRef = useRef(() => {});
 
     const filteredTasks = useMemo(
-        () => tasks.filter(task =>
-            sameId(task.organizationId, selectedOrganizationId)
-            && sameId(task.clientId, selectedClientId)
-            && sameId(task.projectId, selectedProjectId)
-        ),
-        [tasks, selectedClientId, selectedOrganizationId, selectedProjectId]
+        () => tasks
+            .filter(task =>
+                (selectedOrganizationId == null || sameId(task.organizationId, selectedOrganizationId))
+                && (selectedClientId == null || sameId(task.clientId, selectedClientId))
+                && (selectedProjectId == null || sameId(task.projectId, selectedProjectId))
+                && (!showIncompleteOnly || !task.completed)
+            )
+            .sort((left, right) => {
+                const leftDate = left.created_at ?? "";
+                const rightDate = right.created_at ?? "";
+
+                if (leftDate !== rightDate) {
+                    return leftDate.localeCompare(rightDate);
+                }
+
+                return String(left.id ?? "").localeCompare(String(right.id ?? ""));
+            }),
+        [tasks, selectedClientId, selectedOrganizationId, selectedProjectId, showIncompleteOnly]
     );
 
-    const selectedTask = tasks.find(task => sameId(task.id, selectedTaskId)) ?? null;
+    const selectedTask = filteredTasks.find(task => sameId(task.id, selectedTaskId)) ?? null;
     const taskCountLabel = `${filteredTasks.length} task${filteredTasks.length === 1 ? "" : "s"}`;
 
     useEffect(() => {
@@ -371,12 +461,16 @@ export default function TasksPage({
         setValidationIssues([]);
         setWarningDialogOpen(false);
         setWarningMessage("");
+        setDeleteConfirmOpen(false);
     }, []);
 
     const closeEditor = useCallback(() => {
         setEditorOpen(false);
         setEditorMode(null);
         setDraftTask(null);
+        setTaskTimeEntries([]);
+        setTaskTimeEntriesLoading(false);
+        setTaskTimeEntriesError("");
         closeTransientDialogs();
     }, [closeTransientDialogs]);
 
@@ -402,6 +496,9 @@ export default function TasksPage({
     };
 
     const openEditorForExisting = (task) => {
+        setTaskTimeEntries([]);
+        setTaskTimeEntriesLoading(true);
+        setTaskTimeEntriesError("");
         setEditorOpen(true);
         setEditorMode("edit");
         setDraftTask({
@@ -413,6 +510,9 @@ export default function TasksPage({
     };
 
     const openEditorForNew = () => {
+        setTaskTimeEntries([]);
+        setTaskTimeEntriesLoading(false);
+        setTaskTimeEntriesError("");
         const defaults = getContextDefaults(selectedOrganizationId, selectedClientId, selectedProjectId);
         const nextDraft = createTaskDraft(defaults);
 
@@ -466,8 +566,41 @@ export default function TasksPage({
         }
     };
 
+    const getTaskDeleteErrorMessage = (error) => {
+        const status = error?.response?.status;
+
+        if (status === 401 || status === 403) {
+            return "Task delete request was rejected by security. Please sign in again or check access permissions.";
+        }
+
+        return error?.response?.data?.message ??
+            error?.response?.data?.error ??
+            error?.message ??
+            "Task cannot be deleted because worklog entries exist.";
+    };
+
     const handleDeleteTask = async () => {
         if (!selectedTask || editorOpen) {
+            return;
+        }
+
+        try {
+            await checkTaskCanDelete(selectedTask.id);
+            setDeleteConfirmOpen(true);
+        } catch (error) {
+            setWarningMessage(getTaskDeleteErrorMessage(error));
+            setWarningDialogOpen(true);
+            setDeleteConfirmOpen(false);
+        }
+    };
+
+    const handleCancelDeleteTask = () => {
+        setDeleteConfirmOpen(false);
+    };
+
+    const handleConfirmDeleteTask = async () => {
+        if (!selectedTask || editorOpen) {
+            setDeleteConfirmOpen(false);
             return;
         }
 
@@ -478,13 +611,9 @@ export default function TasksPage({
             setSelectedTaskId(remaining[0]?.id ?? null);
             closeTransientDialogs();
         } catch (error) {
-            const message =
-                error?.response?.data?.message ??
-                error?.response?.data?.error ??
-                error?.message ??
-                "Task is used in the system and cannot be deleted.";
-            setWarningMessage(message);
+            setWarningMessage(getTaskDeleteErrorMessage(error));
             setWarningDialogOpen(true);
+            setDeleteConfirmOpen(false);
         }
     };
 
@@ -503,8 +632,6 @@ export default function TasksPage({
         const parsedOrganizationId = nextOrganizationId === "" ? null : Number(nextOrganizationId);
         if (parsedOrganizationId == null) {
             handleDraftChange("organizationId", null);
-            handleDraftChange("clientId", null);
-            handleDraftChange("projectId", null);
             return;
         }
 
@@ -528,7 +655,6 @@ export default function TasksPage({
         const parsedClientId = nextClientId === "" ? null : Number(nextClientId);
         if (parsedClientId == null) {
             handleDraftChange("clientId", null);
-            handleDraftChange("projectId", null);
             return;
         }
 
@@ -578,6 +704,11 @@ export default function TasksPage({
     };
 
     const handleOrganizationChange = (nextOrganizationId) => {
+        if (nextOrganizationId === "") {
+            handleClearOrganizationFilter();
+            return;
+        }
+
         const parsedOrganizationId = Number(nextOrganizationId);
 
         if (editorOpen) {
@@ -585,6 +716,20 @@ export default function TasksPage({
         }
 
         applyFilterSelection(parsedOrganizationId);
+        closeTransientDialogs();
+    };
+
+    const handleClearOrganizationFilter = () => {
+        if (editorOpen) {
+            closeEditor();
+        }
+
+        setSelectedOrganizationId(null);
+        setSelectedTaskId(tasks.find(task =>
+            (selectedClientId == null || sameId(task.clientId, selectedClientId))
+            && (selectedProjectId == null || sameId(task.projectId, selectedProjectId))
+            && (!showIncompleteOnly || !task.completed)
+        )?.id ?? null);
         closeTransientDialogs();
     };
 
@@ -618,6 +763,20 @@ export default function TasksPage({
         closeTransientDialogs();
     };
 
+    const handleClearClientFilter = () => {
+        if (editorOpen) {
+            closeEditor();
+        }
+
+        setSelectedClientId(null);
+        setSelectedTaskId(tasks.find(task =>
+            (selectedOrganizationId == null || sameId(task.organizationId, selectedOrganizationId))
+            && (selectedProjectId == null || sameId(task.projectId, selectedProjectId))
+            && (!showIncompleteOnly || !task.completed)
+        )?.id ?? null);
+        closeTransientDialogs();
+    };
+
     const handleProjectChange = (nextProjectId) => {
         const parsedProjectId = nextProjectId === "" ? null : Number(nextProjectId);
 
@@ -630,6 +789,20 @@ export default function TasksPage({
             sameId(task.organizationId, selectedOrganizationId)
             && sameId(task.clientId, selectedClientId)
             && sameId(task.projectId, parsedProjectId)
+        )?.id ?? null);
+        closeTransientDialogs();
+    };
+
+    const handleClearProjectFilter = () => {
+        if (editorOpen) {
+            closeEditor();
+        }
+
+        setSelectedProjectId(null);
+        setSelectedTaskId(tasks.find(task =>
+            (selectedOrganizationId == null || sameId(task.organizationId, selectedOrganizationId))
+            && (selectedClientId == null || sameId(task.clientId, selectedClientId))
+            && (!showIncompleteOnly || !task.completed)
         )?.id ?? null);
         closeTransientDialogs();
     };
@@ -654,6 +827,7 @@ export default function TasksPage({
             const normalizedTask = {
                 ...draftTask,
                 ...savedTask,
+                actual_hours: savedTask.actual_hours ?? draftTask.actual_hours ?? 0,
                 softwareProductId: draftTask.softwareProductId ?? savedTask.softwareProductId ?? null
             };
 
@@ -698,6 +872,53 @@ export default function TasksPage({
     }, [editorOpen, closeEditor]);
 
     useEffect(() => {
+        let active = true;
+
+        async function loadTaskTimeEntries() {
+            if (!editorOpen || draftTask?.id == null) {
+                setTaskTimeEntries([]);
+                setTaskTimeEntriesLoading(false);
+                setTaskTimeEntriesError("");
+                return;
+            }
+
+            setTaskTimeEntriesLoading(true);
+            setTaskTimeEntriesError("");
+
+            try {
+                const nextEntries = await getTimeEntriesByTask(draftTask.id);
+                if (!active) {
+                    return;
+                }
+
+                setTaskTimeEntries(nextEntries);
+            } catch (error) {
+                if (!active) {
+                    return;
+                }
+
+                setTaskTimeEntries([]);
+                setTaskTimeEntriesError(
+                    error?.response?.data?.message ??
+                    error?.response?.data?.error ??
+                    error?.message ??
+                    "Unable to load task worklog entries."
+                );
+            } finally {
+                if (active) {
+                    setTaskTimeEntriesLoading(false);
+                }
+            }
+        }
+
+        loadTaskTimeEntries();
+
+        return () => {
+            active = false;
+        };
+    }, [draftTask?.id, editorOpen]);
+
+    useEffect(() => {
         if (!editorOpen || validationDialogOpen || warningDialogOpen) {
             return undefined;
         }
@@ -717,6 +938,11 @@ export default function TasksPage({
 
     const renderRow = (task) => {
         const isSelected = sameId(task.id, selectedTaskId);
+        const actualHoursValue = Number(task.actual_hours ?? 0);
+        const estimatedHoursValue = Number(task.estimated_hours ?? 0);
+        const actualHoursClassName = shouldHighlightActualHours(actualHoursValue, estimatedHoursValue)
+            ? "tasks-hours-danger"
+            : "";
 
         return (
             <tr
@@ -725,35 +951,43 @@ export default function TasksPage({
                 onClick={() => handleRowSelect(task)}
                 onDoubleClick={() => handleRowEditRequest(task)}
             >
-                <td>{task.completed ? "Yes" : "No"}</td>
+                <td className="tasks-completed-cell">
+                    {task.completed ? (
+                        <span className="tasks-completed-indicator" aria-label="Completed" title="Completed">
+                            {"\u2713"}
+                        </span>
+                    ) : null}
+                </td>
                 <td>{formatDate(task.created_at)}</td>
                 <td>{task.task_number}</td>
                 <td>{resolveClientLabel(clients, task.clientId)}</td>
                 <td>{task.name}</td>
-                <td>{Number(task.estimated_hours).toFixed(2)}</td>
-                <td>{resolveSoftwareProductLabel(softwareProducts, task.softwareProductId ?? null) || task.softwareProductName || ""}</td>
+                <td className={["tasks-number-cell", actualHoursClassName].filter(Boolean).join(" ")}>{actualHoursValue.toFixed(2)}</td>
+                <td className="tasks-number-cell">{estimatedHoursValue.toFixed(2)}</td>
             </tr>
         );
     };
 
     const filterClients = useMemo(
-        () => clients.filter(client => sameId(client.organizationId, selectedOrganizationId)),
+        () => selectedOrganizationId == null
+            ? clients
+            : clients.filter(client => sameId(client.organizationId, selectedOrganizationId)),
         [clients, selectedOrganizationId]
     );
     const filterProjects = useMemo(
         () => projects.filter(project =>
-            sameId(project.organizationId, selectedOrganizationId)
-            && sameId(project.clientId, selectedClientId)
+            (selectedOrganizationId == null || sameId(project.organizationId, selectedOrganizationId))
+            && (selectedClientId == null || sameId(project.clientId, selectedClientId))
         ),
         [projects, selectedClientId, selectedOrganizationId]
     );
     const editorClients = draftTask
-        ? clients.filter(client => sameId(client.organizationId, draftTask.organizationId))
+        ? clients.filter(client => draftTask.organizationId == null || sameId(client.organizationId, draftTask.organizationId))
         : [];
     const editorProjects = draftTask
         ? projects.filter(project =>
-            sameId(project.organizationId, draftTask.organizationId)
-            && sameId(project.clientId, draftTask.clientId)
+            (draftTask.organizationId == null || sameId(project.organizationId, draftTask.organizationId))
+            && (draftTask.clientId == null || sameId(project.clientId, draftTask.clientId))
         )
         : [];
 
@@ -769,68 +1003,89 @@ export default function TasksPage({
             </header>
 
             <section className="tasks-filter-bar">
-                <div className="tasks-filter-field">
-                    <label className="clients-filter-label" htmlFor="tasks-organization-select">
+                <div className="tasks-filter-header-row">
+                    <label className="tasks-filter-heading" htmlFor="tasks-organization-select">
                         Organization
                     </label>
-                    <select
-                        id="tasks-organization-select"
-                        className="clients-filter-select tasks-filter-select"
-                        value={String(selectedOrganizationId ?? "")}
-                        onChange={event => handleOrganizationChange(event.target.value)}
-                    >
-                        {organizations.map(organization => (
-                            <option key={organization.id} value={String(organization.id)}>
-                                {organization.shortName}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-
-                <div className="tasks-filter-field">
-                    <label className="clients-filter-label" htmlFor="tasks-client-select">
+                    <label className="tasks-filter-heading" htmlFor="tasks-client-select">
                         Client
                     </label>
-                    <select
-                        id="tasks-client-select"
-                        className="clients-filter-select tasks-filter-select"
-                        value={String(selectedClientId ?? "")}
-                        onChange={event => handleClientChange(event.target.value)}
-                        disabled={filterClients.length === 0}
-                    >
-                        {filterClients.length === 0 ? (
-                            <option value=""></option>
-                        ) : (
-                            filterClients.map(client => (
-                                <option key={client.id} value={String(client.id)}>
-                                    {client.shortName}
-                                </option>
-                            ))
-                        )}
-                    </select>
-                </div>
-
-                <div className="tasks-filter-field">
-                    <label className="clients-filter-label" htmlFor="tasks-project-select">
+                    <label className="tasks-filter-heading tasks-filter-heading-project" htmlFor="tasks-project-select">
                         Project
                     </label>
-                    <select
-                        id="tasks-project-select"
-                        className="clients-filter-select tasks-filter-select"
-                        value={String(selectedProjectId ?? "")}
-                        onChange={event => handleProjectChange(event.target.value)}
-                        disabled={filterProjects.length === 0}
-                    >
-                        {filterProjects.length === 0 ? (
-                            <option value=""></option>
-                        ) : (
-                            filterProjects.map(project => (
-                                <option key={project.id} value={String(project.id)}>
-                                    {project.shortName}
-                                </option>
-                            ))
-                        )}
-                    </select>
+                </div>
+
+                <div className="tasks-filter-values-row">
+                    <div className="tasks-filter-field">
+                        <div className="selector-clear-control">
+                            <select
+                                id="tasks-organization-select"
+                                className="clients-filter-select tasks-filter-select"
+                                value={String(selectedOrganizationId ?? "")}
+                                onChange={event => handleOrganizationChange(event.target.value)}
+                            >
+                                <option value=""></option>
+                                {organizations.map(organization => (
+                                    <option key={organization.id} value={String(organization.id)}>
+                                        {organization.shortName}
+                                    </option>
+                                ))}
+                            </select>
+                            {selectedOrganizationId != null && (
+                                <button type="button" className="selector-clear-button" onClick={handleClearOrganizationFilter} aria-label="Clear organization filter">
+                                    Р“вЂ”
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="tasks-filter-field">
+                        <div className="selector-clear-control">
+                            <select
+                                id="tasks-client-select"
+                                className="clients-filter-select tasks-filter-select"
+                                value={String(selectedClientId ?? "")}
+                                onChange={event => handleClientChange(event.target.value)}
+                                disabled={filterClients.length === 0}
+                            >
+                                <option value=""></option>
+                                {filterClients.map(client => (
+                                    <option key={client.id} value={String(client.id)}>
+                                        {client.shortName}
+                                    </option>
+                                ))}
+                            </select>
+                            {selectedClientId != null && (
+                                <button type="button" className="selector-clear-button" onClick={handleClearClientFilter} aria-label="Clear client filter">
+                                    Р“вЂ”
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="tasks-filter-field tasks-filter-field-project">
+                        <div className="selector-clear-control">
+                            <select
+                                id="tasks-project-select"
+                                className="clients-filter-select tasks-filter-select"
+                                value={String(selectedProjectId ?? "")}
+                                onChange={event => handleProjectChange(event.target.value)}
+                                disabled={filterProjects.length === 0}
+                            >
+                                <option value=""></option>
+                                {filterProjects.map(project => (
+                                    <option key={project.id} value={String(project.id)}>
+                                        {project.shortName}
+                                    </option>
+                                ))}
+                            </select>
+                            {selectedProjectId != null && (
+                                <button type="button" className="selector-clear-button" onClick={handleClearProjectFilter} aria-label="Clear project filter">
+                                    Р“вЂ”
+                                </button>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -843,6 +1098,14 @@ export default function TasksPage({
                         </div>
 
                         <div className="organizations-toolbar">
+                            <label className="tasks-toolbar-toggle">
+                                <input
+                                    type="checkbox"
+                                    checked={showIncompleteOnly}
+                                    onChange={event => setShowIncompleteOnly(event.target.checked)}
+                                />
+                                <span>Only open tasks</span>
+                            </label>
                             <div className="organizations-toolbar-actions">
                                 <button
                                     type="button"
@@ -881,7 +1144,7 @@ export default function TasksPage({
                                 <col className="tasks-col-client" />
                                 <col className="tasks-col-name" />
                                 <col className="tasks-col-hours" />
-                                <col className="tasks-col-software" />
+                                <col className="tasks-col-hours" />
                             </colgroup>
                             <thead>
                                 <tr>
@@ -890,8 +1153,8 @@ export default function TasksPage({
                                     <th>Task Number</th>
                                     <th>Client</th>
                                     <th>Name</th>
-                                    <th>Estimated Hours</th>
-                                    <th>Software Product</th>
+                                    <th className="tasks-number-cell">Actual Hours</th>
+                                    <th className="tasks-number-cell">Estimated Hours</th>
                                 </tr>
                             </thead>
                             <tbody>{filteredTasks.map(renderRow)}</tbody>
@@ -908,6 +1171,9 @@ export default function TasksPage({
                     clients={editorClients}
                     projects={editorProjects}
                     softwareProducts={softwareProducts}
+                    taskTimeEntries={taskTimeEntries}
+                    taskTimeEntriesLoading={taskTimeEntriesLoading}
+                    taskTimeEntriesError={taskTimeEntriesError}
                     onDraftChange={handleDraftChange}
                     onOrganizationChange={handleDraftOrganizationChange}
                     onClientChange={handleDraftClientChange}
@@ -941,6 +1207,36 @@ export default function TasksPage({
                         <div className="tracking-modal-actions">
                             <button type="button" className="tracking-modal-button" onClick={() => setValidationDialogOpen(false)}>
                                 OK
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {deleteConfirmOpen && (
+                <div className="tracking-modal-overlay" role="presentation">
+                    <div
+                        className="tracking-modal tracking-modal-confirm"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="tasks-delete-confirm-title"
+                    >
+                        <div className="tracking-modal-header">
+                            <h3 id="tasks-delete-confirm-title">Delete task</h3>
+                        </div>
+                        <div className="tracking-modal-body">
+                            <p className="tracking-modal-text">Delete selected task?</p>
+                        </div>
+                        <div className="tracking-modal-actions">
+                            <button type="button" className="tracking-modal-button" onClick={handleConfirmDeleteTask}>
+                                Delete
+                            </button>
+                            <button
+                                type="button"
+                                className="tracking-modal-button tracking-modal-button-secondary"
+                                onClick={handleCancelDeleteTask}
+                            >
+                                Cancel
                             </button>
                         </div>
                     </div>

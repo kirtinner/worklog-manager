@@ -4,6 +4,13 @@ body {
   margin: 0;
 }
 
+:root {
+  --app-selection-bg: #e4effd;
+  --app-selection-border: #7aa7d9;
+  --app-selection-accent: #3f7fb8;
+  --app-focus-ring: rgba(63, 127, 184, 0.28);
+}
+
 .container {
   max-width: 600px;
   margin: 40px auto;
@@ -52,6 +59,14 @@ select {
   padding: 8px;
   border-radius: 6px;
   border: 1px solid #ccc;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--app-selection-border);
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 1px;
 }
 
 .actions {
@@ -208,9 +223,9 @@ select {
 }
 
 .app-shell-nav-item-active {
-  border-color: #b69d7c;
-  background: #f7f4ee;
-  box-shadow: inset 3px 0 0 #b69d7c;
+  border-color: var(--app-selection-border);
+  background: var(--app-selection-bg);
+  box-shadow: inset 3px 0 0 var(--app-selection-accent);
 }
 
 .app-shell-footer {
@@ -302,6 +317,7 @@ select {
   border-bottom: 1px solid #e5e9f0;
   color: #344054;
   vertical-align: middle;
+  font-weight: 400;
 }
 
 .app-master-data-table tbody tr:hover {
@@ -316,7 +332,17 @@ select {
   background: #ffffff;
   color: #1f2933;
   font: inherit;
+  font-weight: 400;
   box-sizing: border-box;
+}
+
+.app-master-data-input:focus,
+.clients-filter-select:focus,
+.projects-filter-select:focus,
+.tasks-filter-select:focus {
+  border-color: var(--app-selection-border);
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 1px;
 }
 
 .organizations-main {
@@ -429,12 +455,12 @@ select {
 }
 
 .organizations-row-selected {
-  background: #f7f4ee;
-  box-shadow: inset 3px 0 0 #b69d7c;
+  background: var(--app-selection-bg);
+  box-shadow: inset 3px 0 0 var(--app-selection-accent);
 }
 
 .organizations-row-selected:hover {
-  background: #f7f4ee;
+  background: var(--app-selection-bg);
 }
 
 .organizations-input {
@@ -498,7 +524,7 @@ select {
 .clients-filter-label {
   color: #344054;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 400;
   white-space: nowrap;
 }
 
@@ -511,7 +537,24 @@ select {
   background: #ffffff;
   color: #1f2933;
   font: inherit;
+  font-weight: 400;
   box-sizing: border-box;
+}
+
+.selector-clear-control {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  width: 100%;
+}
+
+.selector-clear-control select {
+  padding-right: 8px;
+}
+
+.selector-clear-button {
+  display: none !important;
 }
 
 .projects-filter-field {
@@ -546,6 +589,16 @@ select {
 }
 
 .tasks-filter-bar {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  margin-bottom: 14px;
+  box-sizing: border-box;
+}
+
+.tasks-filter-header-row,
+.tasks-filter-values-row {
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;
@@ -553,26 +606,77 @@ select {
   flex-wrap: wrap;
   width: 100%;
   min-width: 0;
-  margin-bottom: 14px;
-  padding: 10px 14px;
-  border: 1px solid #dfe4ec;
-  border-radius: 8px;
-  background: #f3efe7;
-  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.06);
   box-sizing: border-box;
 }
 
-.tasks-filter-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+.tasks-filter-header-row {
+  padding: 8px 14px;
+  border: 1px solid #b9d2ec;
+  border-radius: 8px;
+  background: #dcebf9;
+  box-shadow: 0 1px 3px rgba(28, 85, 135, 0.12);
+}
+
+.tasks-filter-values-row {
+  padding: 0 14px;
+}
+
+.tasks-filter-field,
+.tasks-filter-heading {
   min-width: 0;
   flex: 0 1 260px;
+  box-sizing: border-box;
+}
+
+.tasks-filter-field-project,
+.tasks-filter-heading-project {
+  flex-basis: min(520px, 100%);
+}
+
+.tasks-filter-heading {
+  color: #344054;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: nowrap;
 }
 
 .tasks-filter-select {
   width: min(320px, 100%);
   min-width: 220px;
+  font-family: Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: normal;
+}
+
+.tasks-filter-field-project .tasks-filter-select {
+  width: min(640px, 100%);
+}
+
+.tasks-toolbar-toggle {
+  align-self: flex-end;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 8px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 5px;
+  background: #dcebf9;
+  color: #344054;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: normal;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.tasks-toolbar-toggle input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
 }
 
 .projects-filter-bar .clients-filter-label {
@@ -1019,16 +1123,16 @@ select {
 }
 
 .tracking-calendar-cell-selected {
-  border-color: #a58a68;
-  background: #f7f4ee;
-  box-shadow: inset 3px 0 0 #a58a68;
+  border-color: var(--app-selection-border);
+  background: var(--app-selection-bg);
+  box-shadow: inset 3px 0 0 var(--app-selection-accent);
   font-weight: 700;
 }
 
 .tracking-calendar-cell-selected.tracking-calendar-cell-weekend {
-  border-color: #a58a68;
-  background: #f7f4ee;
-  box-shadow: inset 3px 0 0 #a58a68, inset 0 1px 0 #ffffff, inset 0 -1px 0 #e8ddd0;
+  border-color: var(--app-selection-border);
+  background: var(--app-selection-bg);
+  box-shadow: inset 3px 0 0 var(--app-selection-accent), inset 0 1px 0 #ffffff, inset 0 -1px 0 #c9ddf4;
 }
 
 .tracking-calendar-cell-muted {
@@ -1114,6 +1218,16 @@ select {
   background: #fbfcfe;
 }
 
+.tracking-modal-task-editor .tracking-modal-header {
+  min-height: 42px;
+  padding: 0 14px;
+  border-bottom: 1px solid #b9d2ec;
+  background: #dcebf9;
+  box-shadow: 0 1px 3px rgba(28, 85, 135, 0.12);
+  display: flex;
+  align-items: center;
+}
+
 .tracking-modal-header h3 {
   margin: 0;
   font-size: 14px;
@@ -1142,10 +1256,11 @@ select {
   gap: 6px;
   color: #344054;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
-.tracking-modal-field input {
+.tracking-modal-field input,
+.tracking-modal-field textarea {
   width: 100%;
   padding: 6px 8px;
   border: 1px solid #d9dee7;
@@ -1153,6 +1268,8 @@ select {
   background: #ffffff;
   color: #1f2933;
   font: inherit;
+  font-weight: 400;
+  line-height: 1.35;
   box-sizing: border-box;
 }
 
@@ -1164,7 +1281,17 @@ select {
   background: #ffffff;
   color: #1f2933;
   font: inherit;
+  font-weight: 400;
+  line-height: 1.35;
   box-sizing: border-box;
+}
+
+.tracking-modal-field input:focus,
+.tracking-modal-field select:focus,
+.tracking-modal-field textarea:focus {
+  border-color: var(--app-selection-border);
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 1px;
 }
 
 .tracking-modal-fields {
@@ -1219,11 +1346,22 @@ select {
 }
 
 .tracking-modal-task-editor {
-  width: min(980px, 100%);
+  width: min(1120px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #eef1f5;
+  box-shadow: none;
 }
 
-.tracking-modal-task-editor .tracking-modal-body {
-  max-height: calc(100vh - 180px);
+.tracking-modal-task-editor-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
 }
 
@@ -1260,7 +1398,15 @@ select {
 
 .tasks-editor-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas:
+    "created completed"
+    "organization client"
+    "project ."
+    "task-number software"
+    "name name"
+    "actual estimated"
+    "comment comment";
   gap: 10px 12px;
   align-items: start;
 }
@@ -1269,28 +1415,219 @@ select {
   min-width: 0;
 }
 
+.tracking-modal-task-editor .tracking-modal-field > span {
+  font-weight: 600;
+}
+
+.tasks-editor-field-created {
+  grid-area: created;
+}
+
+.tasks-editor-field-completed {
+  grid-area: completed;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.tasks-editor-field-organization {
+  grid-area: organization;
+}
+
+.tasks-editor-field-client {
+  grid-area: client;
+}
+
+.tasks-editor-field-project {
+  grid-area: project;
+}
+
+.tasks-editor-field-software {
+  grid-area: software;
+}
+
+.tasks-editor-field-task-number {
+  grid-area: task-number;
+}
+
+.tasks-editor-field-name {
+  grid-area: name;
+}
+
+.tasks-editor-field-actual {
+  grid-area: actual;
+}
+
+.tasks-editor-field-estimated {
+  grid-area: estimated;
+}
+
+.tasks-editor-field-comment {
+  grid-area: comment;
+}
+
 .tasks-editor-field input[type="checkbox"] {
   width: 16px;
   height: 16px;
   margin: 0;
-  align-self: center;
+  align-self: flex-start;
 }
 
-.tasks-editor-field-checkbox {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+.tasks-editor-field-name input {
+  width: 100%;
 }
 
-.tasks-editor-field-full {
-  grid-column: 1 / -1;
-}
-
-.tasks-editor-field-full textarea {
+.tasks-editor-field-comment textarea {
   min-height: 74px;
   resize: vertical;
+}
+
+.tasks-hours-danger {
+  color: #b42318;
+}
+
+.tasks-editor-timesheet {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  padding: 0;
+  background: #eef1f5;
+}
+
+.tasks-editor-timesheet-header {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  padding: 0 14px;
+  border-bottom: 1px solid #b9d2ec;
+  background: #dcebf9;
+  box-shadow: 0 1px 3px rgba(28, 85, 135, 0.12);
+}
+
+.tasks-editor-timesheet-header h4 {
+  margin: 0;
+  color: #344054;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.tasks-editor-timesheet-error,
+.tasks-editor-timesheet-empty {
+  font-size: 12px;
+}
+
+.tasks-editor-timesheet-empty {
+  color: #667085;
+  padding: 8px 0 2px;
+}
+
+.tasks-editor-timesheet-empty-cell {
+  padding: 14px 10px;
+  color: #667085;
+  text-align: center;
+}
+
+.tasks-editor-timesheet-table-wrap {
+  max-height: 210px;
+  overflow: auto;
+  border: 0;
+  border-radius: 0;
+  background: #eef1f5;
+}
+
+.tasks-editor-timesheet-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.tasks-editor-timesheet-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f7f9fc;
+  border-bottom: 1px solid #d9dee7;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.tasks-editor-timesheet-table thead th:nth-child(1) {
+  width: 24%;
+}
+
+.tasks-editor-timesheet-table thead th:nth-child(2) {
+  width: 16%;
+}
+
+.tasks-editor-timesheet-table thead th:nth-child(3) {
+  width: 60%;
+}
+
+.tasks-editor-timesheet-table tbody td,
+.tasks-editor-timesheet-table tfoot td {
+  border-bottom: 1px solid #e5e9f0;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 400;
+  padding: 7px 10px;
+  vertical-align: top;
+}
+
+.tasks-editor-timesheet-table tbody tr:last-child td {
+  border-bottom: 1px solid #d9dee7;
+}
+
+.tasks-editor-timesheet-table tfoot td {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  background: #eef1f5;
+  font-weight: 600;
+}
+
+.tasks-editor-field-completed {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.tasks-editor-field-completed input[type="checkbox"] {
+  align-self: flex-start;
+  margin-left: 0;
+}
+
+.tasks-completed-cell {
+  text-align: center;
+}
+
+.tasks-number-cell {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.tasks-completed-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid #94c7a5;
+  border-radius: 999px;
+  background: #eaf6ee;
+  color: #2f7d46;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .tasks-table {
@@ -1298,32 +1635,50 @@ select {
   width: 100%;
 }
 
+.tasks-table .organizations-row-selected {
+  background: var(--app-selection-bg);
+}
+
+.tasks-table .organizations-row-selected:hover {
+  background: var(--app-selection-bg);
+}
+
+.organizations-panel:has(.tasks-table) {
+  background: #ffffff;
+}
+
+.organizations-panel:has(.tasks-table) .tracking-panel-header {
+  border-color: #b9d2ec;
+  background: #dcebf9;
+  box-shadow: 0 1px 3px rgba(28, 85, 135, 0.12);
+}
+
+.organizations-panel:has(.tasks-table) .tracking-panel-body {
+  background: #ffffff;
+}
+
 .tasks-col-completed {
-  width: 8%;
+  width: 6%;
 }
 
 .tasks-col-date {
-  width: 12%;
+  width: 11%;
 }
 
 .tasks-col-number {
-  width: 14%;
+  width: 12%;
 }
 
 .tasks-col-client {
-  width: 16%;
+  width: 13%;
 }
 
 .tasks-col-name {
-  width: 24%;
+  width: 28%;
 }
 
 .tasks-col-hours {
   width: 10%;
-}
-
-.tasks-col-software {
-  width: 16%;
 }
 
 @media (max-width: 900px) {

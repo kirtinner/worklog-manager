@@ -3,6 +3,7 @@ package com.kzhastkou.devproductivityplatform.controller;
 import com.kzhastkou.devproductivityplatform.dto.TimeEntryDayRequest;
 import com.kzhastkou.devproductivityplatform.dto.TimeEntryRequest;
 import com.kzhastkou.devproductivityplatform.dto.TimeEntryResponse;
+import com.kzhastkou.devproductivityplatform.dto.TaskTimeEntryResponse;
 import com.kzhastkou.devproductivityplatform.entity.Developer;
 import com.kzhastkou.devproductivityplatform.repository.DeveloperRepository;
 import com.kzhastkou.devproductivityplatform.service.TimeEntryService;
@@ -36,6 +37,11 @@ public class TimeEntryController {
     @GetMapping("/month")
     public List<TimeEntryResponse> getByMonth(@RequestParam int year, @RequestParam int month) {
         return timeEntryService.getByMonth(year, month, resolveCurrentUserId());
+    }
+
+    @GetMapping("/task/{taskId}")
+    public List<TaskTimeEntryResponse> getByTask(@PathVariable Long taskId) {
+        return timeEntryService.getByTask(taskId, resolveCurrentUserId());
     }
 
     @PutMapping("/day")
