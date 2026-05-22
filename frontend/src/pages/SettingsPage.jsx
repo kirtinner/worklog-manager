@@ -1,5 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import SoftwareProductsSettingsTable from "../components/SoftwareProductsSettingsTable";
+import {
+    clearStoredReportsSaveDirectoryHandle,
+    setStoredReportsSaveDirectoryHandle
+} from "../utils/reportExportDirectoryStorage";
 
 function getApiErrorMessage(error, fallbackMessage) {
     const responseData = error?.response?.data;
@@ -12,7 +16,7 @@ function getApiErrorMessage(error, fallbackMessage) {
 export default function SettingsPage({
     organizations = [],
     softwareProducts = [],
-    userSettings = { currentOrganizationId: null, dailyHoursLimit: 8 },
+    userSettings = { currentOrganizationId: null, dailyHoursLimit: 8, reportsSaveDirectory: "" },
     userSettingsLoading = false,
     userSettingsError = "",
     softwareProductsLoading = false,
@@ -22,9 +26,16 @@ export default function SettingsPage({
 }) {
     const [settingsDraftLimit, setSettingsDraftLimit] = useState(String(userSettings.dailyHoursLimit ?? 8));
     const [settingsDraftOrganizationId, setSettingsDraftOrganizationId] = useState(String(userSettings.currentOrganizationId ?? ""));
+    const [settingsDraftReportsSaveDirectory, setSettingsDraftReportsSaveDirectory] = useState(userSettings.reportsSaveDirectory ?? "");
     const [settingsMessage, setSettingsMessage] = useState("");
     const [settingsSaveError, setSettingsSaveError] = useState("");
     const [settingsSaving, setSettingsSaving] = useState(false);
+
+    useEffect(() => {
+        setSettingsDraftLimit(String(userSettings.dailyHoursLimit ?? 8));
+        setSettingsDraftOrganizationId(String(userSettings.currentOrganizationId ?? ""));
+        setSettingsDraftReportsSaveDirectory(userSettings.reportsSaveDirectory ?? "");
+    }, [userSettings.currentOrganizationId, userSettings.dailyHoursLimit, userSettings.reportsSaveDirectory]);
 
     const handleSaveUserSettings = async () => {
         const parsedLimit = Number(settingsDraftLimit);
@@ -41,7 +52,8 @@ export default function SettingsPage({
         try {
             await onUserSettingsChange({
                 currentOrganizationId: settingsDraftOrganizationId ? Number(settingsDraftOrganizationId) : null,
-                dailyHoursLimit: parsedLimit
+                dailyHoursLimit: parsedLimit,
+                reportsSaveDirectory: settingsDraftReportsSaveDirectory
             });
             setSettingsMessage("User settings saved.");
         } catch (error) {
@@ -56,6 +68,35 @@ export default function SettingsPage({
             ? nextProductsOrUpdater(softwareProducts)
             : nextProductsOrUpdater;
         onSoftwareProductsChange(nextProducts.map(product => ({ ...product })));
+    };
+
+    const handleChooseReportsSaveDirectory = async () => {
+        setSettingsMessage("");
+        setSettingsSaveError("");
+
+        if (!window.showDirectoryPicker) {
+            setSettingsSaveError("This browser does not support directory selection.");
+            return;
+        }
+
+        try {
+            const directoryHandle = await window.showDirectoryPicker({
+                id: "reports-save-directory",
+                mode: "readwrite"
+            });
+
+            setSettingsDraftReportsSaveDirectory(directoryHandle.name ?? "");
+            await setStoredReportsSaveDirectoryHandle(directoryHandle);
+        } catch (error) {
+            if (error?.name !== "AbortError") {
+                setSettingsSaveError(getApiErrorMessage(error, "Unable to select reports save directory."));
+            }
+        }
+    };
+
+    const handleClearReportsSaveDirectory = async () => {
+        setSettingsDraftReportsSaveDirectory("");
+        await clearStoredReportsSaveDirectoryHandle();
     };
 
     return (
@@ -119,6 +160,30 @@ export default function SettingsPage({
                                             ×
                                         </button>
                                     )}
+                                </div>
+                            </label>
+
+                            <label className="tracking-modal-field settings-directory-field">
+                                <span>Reports Save Directory</span>
+                                <div className="settings-directory-control">
+                                    <input
+                                        type="text"
+                                        value={settingsDraftReportsSaveDirectory}
+                                        placeholder="No directory selected"
+                                        readOnly
+                                    />
+                                    <button type="button" className="tracking-save-button" onClick={handleChooseReportsSaveDirectory}>
+                                        Choose
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="selector-clear-button settings-directory-clear-button"
+                                        onClick={handleClearReportsSaveDirectory}
+                                        aria-label="Clear reports save directory"
+                                        disabled={!settingsDraftReportsSaveDirectory}
+                                    >
+                                        ×
+                                    </button>
                                 </div>
                             </label>
                         </div>

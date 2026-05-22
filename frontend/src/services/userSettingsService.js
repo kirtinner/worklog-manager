@@ -6,14 +6,16 @@ function normalizeUserSettings(settings) {
         developerId: settings.developerId ?? null,
         currentOrganizationId: settings.currentOrganizationId ?? null,
         currentOrganizationName: settings.currentOrganizationName ?? "",
-        dailyHoursLimit: Number(settings.dailyHoursLimit ?? 8)
+        dailyHoursLimit: Number(settings.dailyHoursLimit ?? 8),
+        reportsSaveDirectory: settings.reportsSaveDirectory ?? ""
     };
 }
 
 function toUserSettingsRequest(settings) {
     return {
         currentOrganizationId: settings.currentOrganizationId ?? null,
-        dailyHoursLimit: Number(settings.dailyHoursLimit)
+        dailyHoursLimit: Number(settings.dailyHoursLimit),
+        reportsSaveDirectory: settings.reportsSaveDirectory ?? ""
     };
 }
 

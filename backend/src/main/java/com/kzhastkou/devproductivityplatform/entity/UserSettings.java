@@ -39,4 +39,7 @@ public class UserSettings {
 
     @Column(nullable = false)
     private Double dailyHoursLimit;
+
+    @Column(length = 1000)
+    private String reportsSaveDirectory;
 }

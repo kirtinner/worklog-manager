@@ -66,8 +66,8 @@ export default function Dashboard({onLogout, onNavigate}) {
     const startEdit = (entry) => {
         setEditingId(entry.id);
         setDate(entry.date);
-        setHours(String(entry.hours)); // 👈 фикс
-        setTaskId(String(entry.taskId)); // 👈 фикс
+        setHours(String(entry.hours));
+        setTaskId(String(entry.taskId));
     };
 
     const resetForm = () => {
@@ -83,23 +83,14 @@ export default function Dashboard({onLogout, onNavigate}) {
     // );
 
     return (
-        <div className="container">
-
-            {/* HEADER */}
-            <div className="header">
+        <div className="container">            <div className="header">
                 <h2>Dev Productivity</h2>
                 <div className="actions">
                     <button onClick={() => onNavigate("time-tracking")}>Time Tracking</button>
                     <button onClick={() => onNavigate("calendar")}>Calendar</button>
                     <button onClick={onLogout}>Logout</button>
                 </div>
-            </div>
-
-            {/* ADD / EDIT FORM */}
-            <h3>{editingId ? "Edit Entry" : "Add Entry"}</h3>
-
-            {/* поля */}
-            <div className="form-row">
+            </div>            <h3>{editingId ? "Edit Entry" : "Add Entry"}</h3>            <div className="form-row">
                 <input
                     type="date"
                     value={date}
@@ -124,10 +115,7 @@ export default function Dashboard({onLogout, onNavigate}) {
                         </option>
                     ))}
                 </select>
-            </div>
-
-            {/* кнопки */}
-            <div className="form-actions">
+            </div>            <div className="form-actions">
                 {editingId ? (
                     <>
                         <button onClick={updateEntry}>Save</button>
@@ -136,10 +124,7 @@ export default function Dashboard({onLogout, onNavigate}) {
                 ) : (
                     <button onClick={createEntry}>Add</button>
                 )}
-            </div>
-
-            {/* LIST */}
-            <h3>My Entries</h3>
+            </div>            <h3>My Entries</h3>
             {entries.length === 0 && <div>No entries yet</div>}
             {entries.map(e => (
                 <div key={e.id} className="entry">

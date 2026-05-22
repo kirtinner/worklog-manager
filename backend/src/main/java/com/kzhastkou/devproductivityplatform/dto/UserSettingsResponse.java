@@ -12,4 +12,5 @@ public class UserSettingsResponse {
     private Long currentOrganizationId;
     private String currentOrganizationName;
     private Double dailyHoursLimit;
+    private String reportsSaveDirectory;
 }

@@ -48,7 +48,7 @@ export function validateWorklogDay(entries, dailyHoursLimit) {
     const hasDailyLimitViolation = totalHours > dailyHoursLimit;
 
     if (hasDailyLimitViolation) {
-        issues.push(`Ты работал более ${dailyHoursLimit} часов! Ну так нельзя, дружок, отдохни`);
+        issues.push(`Daily hours exceed the configured ${dailyHoursLimit} hour limit.`);
     }
 
     return {

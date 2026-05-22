@@ -5,7 +5,8 @@ export const DEFAULT_USER_SETTINGS = {
     developerId: null,
     currentOrganizationId: null,
     currentOrganizationName: "",
-    dailyHoursLimit: 8
+    dailyHoursLimit: 8,
+    reportsSaveDirectory: ""
 };
 
 export const UserSettingsContext = createContext({

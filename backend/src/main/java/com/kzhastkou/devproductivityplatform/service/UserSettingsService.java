@@ -38,6 +38,7 @@ public class UserSettingsService {
 
         settings.setCurrentOrganization(organization);
         settings.setDailyHoursLimit(request.getDailyHoursLimit());
+        settings.setReportsSaveDirectory(request.getReportsSaveDirectory());
 
         return toResponse(userSettingsRepository.save(settings));
     }
@@ -48,6 +49,7 @@ public class UserSettingsService {
                         .developer(developer)
                         .currentOrganization(resolveDefaultOrganization(developer))
                         .dailyHoursLimit(DEFAULT_DAILY_HOURS_LIMIT)
+                        .reportsSaveDirectory("")
                         .build()));
     }
 
@@ -80,6 +82,7 @@ public class UserSettingsService {
                 .currentOrganizationId(currentOrganization != null ? currentOrganization.getId() : null)
                 .currentOrganizationName(currentOrganization != null ? currentOrganization.getShortName() : "")
                 .dailyHoursLimit(settings.getDailyHoursLimit())
+                .reportsSaveDirectory(settings.getReportsSaveDirectory())
                 .build();
     }
 }

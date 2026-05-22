@@ -1115,7 +1115,7 @@ export default function TasksPage({
                             </select>
                             {selectedOrganizationId != null && (
                                 <button type="button" className="selector-clear-button" onClick={handleClearOrganizationFilter} aria-label="Clear organization filter">
-                                    Р“вЂ”
+                                    ×
                                 </button>
                             )}
                         </div>
@@ -1139,7 +1139,7 @@ export default function TasksPage({
                             </select>
                             {selectedClientId != null && (
                                 <button type="button" className="selector-clear-button" onClick={handleClearClientFilter} aria-label="Clear client filter">
-                                    Р“вЂ”
+                                    ×
                                 </button>
                             )}
                         </div>
@@ -1163,7 +1163,7 @@ export default function TasksPage({
                             </select>
                             {selectedProjectId != null && (
                                 <button type="button" className="selector-clear-button" onClick={handleClearProjectFilter} aria-label="Clear project filter">
-                                    Р“вЂ”
+                                    ×
                                 </button>
                             )}
                         </div>

@@ -60,6 +60,7 @@ function App() {
     const [userSettingsError, setUserSettingsError] = useState("");
     const [softwareProductsLoading, setSoftwareProductsLoading] = useState(false);
     const [softwareProductsError, setSoftwareProductsError] = useState("");
+    const [reportsResetToken, setReportsResetToken] = useState(0);
 
     const currentOrganizationId = userSettings.currentOrganizationId;
 
@@ -127,7 +128,8 @@ function App() {
     const handleUserSettingsChange = async (nextSettings) => {
         const savedSettings = await apiUpdateUserSettings({
             currentOrganizationId: nextSettings.currentOrganizationId,
-            dailyHoursLimit: nextSettings.dailyHoursLimit
+            dailyHoursLimit: nextSettings.dailyHoursLimit,
+            reportsSaveDirectory: nextSettings.reportsSaveDirectory
         });
 
         setUserSettings(savedSettings);
@@ -146,6 +148,9 @@ function App() {
         }
 
         sessionStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, nextPage);
+        if (nextPage === "reports") {
+            setReportsResetToken(token => token + 1);
+        }
         setPage(nextPage);
     };
 
@@ -171,7 +176,7 @@ function App() {
                     />
                 );
             case "reports":
-                return <ReportsPage />;
+                return <ReportsPage resetToken={reportsResetToken} />;
             case "clients":
                 return (
                     <ClientsPage
@@ -206,6 +211,7 @@ function App() {
                             userSettings.id ?? "settings",
                             userSettings.currentOrganizationId ?? "no-org",
                             userSettings.dailyHoursLimit ?? "no-limit",
+                            userSettings.reportsSaveDirectory ?? "no-reports-dir",
                             softwareProducts.map(product => product.id).join("-")
                         ].join(":")}
                         organizations={organizations}

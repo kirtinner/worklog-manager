@@ -48,6 +48,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/time-entries/month").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/time-entries/**").permitAll()
                         .requestMatchers(HttpMethod.PUT, "/api/time-entries/day").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/reports").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/reports/").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/reports/**").permitAll()
+                        .requestMatchers("/api/reports").permitAll()
+                        .requestMatchers("/api/reports/").permitAll()
+                        .requestMatchers("/api/reports/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter,

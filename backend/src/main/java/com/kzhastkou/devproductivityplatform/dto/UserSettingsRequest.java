@@ -12,4 +12,6 @@ public class UserSettingsRequest {
     @NotNull
     @DecimalMin(value = "0.0", inclusive = false)
     private Double dailyHoursLimit;
+
+    private String reportsSaveDirectory;
 }
