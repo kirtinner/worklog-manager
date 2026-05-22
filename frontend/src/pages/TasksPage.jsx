@@ -22,6 +22,7 @@ function createTaskDraft(context) {
         task_number: "",
         name: "",
         comment: "",
+        task_link: "",
         description: "",
         implementation_details: "",
         estimated_hours: 0,
@@ -104,6 +105,16 @@ function shouldHighlightActualHours(actualHours, estimatedHours) {
 
 function sameId(left, right) {
     return left != null && right != null && String(left) === String(right);
+}
+
+function readStoredNumber(key) {
+    const value = sessionStorage.getItem(key);
+    if (value == null || value === "") {
+        return null;
+    }
+
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
 }
 
 function TaskEditorModal({
@@ -246,26 +257,57 @@ function TaskEditorModal({
                             />
                         </label>
 
-                        <label className="tracking-modal-field tasks-editor-field tasks-editor-field-actual">
-                            <span>Actual Hours</span>
-                            <input
-                                type="text"
-                                className={actualHoursIsOverEstimate ? "tasks-hours-danger" : ""}
-                                value={modalActualHoursValue.toFixed(2)}
-                                readOnly
-                                aria-readonly="true"
-                            />
-                        </label>
+                        <div className="tasks-editor-hours-row">
+                            <label className="tracking-modal-field tasks-editor-field tasks-editor-field-actual">
+                                <span>Actual Hours</span>
+                                <input
+                                    type="text"
+                                    className={actualHoursIsOverEstimate ? "tasks-hours-danger" : ""}
+                                    value={modalActualHoursValue.toFixed(2)}
+                                    readOnly
+                                    aria-readonly="true"
+                                />
+                            </label>
 
-                        <label className="tracking-modal-field tasks-editor-field tasks-editor-field-estimated">
-                            <span>Estimated Hours</span>
-                            <input
-                                type="number"
-                                min="0"
-                                step="0.25"
-                                value={draftTask.estimated_hours}
-                                onChange={event => onEstimatedHoursChange(event.target.value)}
-                            />
+                            <label className="tracking-modal-field tasks-editor-field tasks-editor-field-estimated">
+                                <span>Estimated Hours</span>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="0.25"
+                                    value={draftTask.estimated_hours}
+                                    onChange={event => onEstimatedHoursChange(event.target.value)}
+                                />
+                            </label>
+                        </div>
+
+                        <label className="tracking-modal-field tasks-editor-field tasks-editor-field-link">
+                            <span>Task Link</span>
+                            <div className="tasks-editor-link-control">
+                                <input
+                                    type="url"
+                                    value={draftTask.task_link ?? ""}
+                                    onChange={event => onDraftChange("task_link", event.target.value)}
+                                />
+                                <a
+                                    className={[
+                                        "tracking-save-button",
+                                        "tasks-editor-link-open",
+                                        draftTask.task_link ? "" : "tasks-editor-link-open-disabled"
+                                    ].filter(Boolean).join(" ")}
+                                    href={draftTask.task_link || undefined}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    aria-disabled={!draftTask.task_link}
+                                    onClick={event => {
+                                        if (!draftTask.task_link) {
+                                            event.preventDefault();
+                                        }
+                                    }}
+                                >
+                                    Open
+                                </a>
+                            </div>
                         </label>
 
                         <label className="tracking-modal-field tasks-editor-field tasks-editor-field-comment">
@@ -280,6 +322,9 @@ function TaskEditorModal({
                     <section className="tasks-editor-timesheet">
                         <div className="tasks-editor-timesheet-header">
                             <h4>Task Worklog</h4>
+                            <span className="tasks-editor-timesheet-total">
+                                Total {taskTimeEntriesTotal.toFixed(2)}
+                            </span>
                         </div>
 
                         {draftTask.id == null ? (
@@ -321,13 +366,6 @@ function TaskEditorModal({
                                             ))
                                         )}
                                     </tbody>
-                                    <tfoot>
-                                        <tr>
-                                            <td>Total</td>
-                                            <td className="tasks-number-cell">{taskTimeEntriesTotal.toFixed(2)}</td>
-                                            <td />
-                                        </tr>
-                                    </tfoot>
                                 </table>
                             </div>
                         )}
@@ -363,11 +401,18 @@ export default function TasksPage({
     const [clients, setClients] = useState([]);
     const [projects, setProjects] = useState([]);
     const [tasks, setTasks] = useState([]);
-    const [selectedOrganizationId, setSelectedOrganizationId] = useState(currentOrganizationId ?? organizations[0]?.id ?? null);
-    const [selectedClientId, setSelectedClientId] = useState(null);
-    const [selectedProjectId, setSelectedProjectId] = useState(null);
+    const [selectedOrganizationId, setSelectedOrganizationId] = useState(
+        readStoredNumber("dev-productivity:tasks:selected-organization-id")
+        ?? currentOrganizationId
+        ?? organizations[0]?.id
+        ?? null
+    );
+    const [selectedClientId, setSelectedClientId] = useState(readStoredNumber("dev-productivity:tasks:selected-client-id"));
+    const [selectedProjectId, setSelectedProjectId] = useState(readStoredNumber("dev-productivity:tasks:selected-project-id"));
     const [selectedTaskId, setSelectedTaskId] = useState(null);
-    const [showIncompleteOnly, setShowIncompleteOnly] = useState(true);
+    const [showIncompleteOnly, setShowIncompleteOnly] = useState(
+        sessionStorage.getItem("dev-productivity:tasks:show-incomplete-only") !== "false"
+    );
     const [editorOpen, setEditorOpen] = useState(false);
     const [editorMode, setEditorMode] = useState(null); // "add" | "edit"
     const [draftTask, setDraftTask] = useState(null);
@@ -424,14 +469,21 @@ export default function TasksPage({
                 setProjects(nextProjects);
                 setTasks(nextTasks);
 
-                const initialOrganizationId = currentOrganizationId ?? organizations[0]?.id ?? nextClients[0]?.organizationId ?? null;
+                const storedOrganizationId = readStoredNumber("dev-productivity:tasks:selected-organization-id");
+                const storedClientId = readStoredNumber("dev-productivity:tasks:selected-client-id");
+                const storedProjectId = readStoredNumber("dev-productivity:tasks:selected-project-id");
+                const initialOrganizationId = storedOrganizationId ?? currentOrganizationId ?? organizations[0]?.id ?? nextClients[0]?.organizationId ?? null;
                 const initialClients = nextClients.filter(client => sameId(client.organizationId, initialOrganizationId));
-                const initialClientId = initialClients[0]?.id ?? null;
+                const initialClientId = storedClientId != null && initialClients.some(client => sameId(client.id, storedClientId))
+                    ? storedClientId
+                    : initialClients[0]?.id ?? null;
                 const initialProjects = nextProjects.filter(project =>
                     sameId(project.organizationId, initialOrganizationId)
                     && sameId(project.clientId, initialClientId)
                 );
-                const initialProjectId = initialProjects[0]?.id ?? null;
+                const initialProjectId = storedProjectId != null && initialProjects.some(project => sameId(project.id, storedProjectId))
+                    ? storedProjectId
+                    : initialProjects[0]?.id ?? null;
                 const initialTaskId = nextTasks.find(task =>
                     sameId(task.organizationId, initialOrganizationId)
                     && sameId(task.clientId, initialClientId)
@@ -527,6 +579,21 @@ export default function TasksPage({
         setSelectedOrganizationId(defaults.organizationId);
         setSelectedClientId(defaults.clientId);
         setSelectedProjectId(defaults.projectId);
+        if (defaults.organizationId == null) {
+            sessionStorage.removeItem("dev-productivity:tasks:selected-organization-id");
+        } else {
+            sessionStorage.setItem("dev-productivity:tasks:selected-organization-id", String(defaults.organizationId));
+        }
+        if (defaults.clientId == null) {
+            sessionStorage.removeItem("dev-productivity:tasks:selected-client-id");
+        } else {
+            sessionStorage.setItem("dev-productivity:tasks:selected-client-id", String(defaults.clientId));
+        }
+        if (defaults.projectId == null) {
+            sessionStorage.removeItem("dev-productivity:tasks:selected-project-id");
+        } else {
+            sessionStorage.setItem("dev-productivity:tasks:selected-project-id", String(defaults.projectId));
+        }
         setSelectedTaskId(
             tasks.find(task =>
                 sameId(task.organizationId, defaults.organizationId)
@@ -725,6 +792,7 @@ export default function TasksPage({
         }
 
         setSelectedOrganizationId(null);
+        sessionStorage.removeItem("dev-productivity:tasks:selected-organization-id");
         setSelectedTaskId(tasks.find(task =>
             (selectedClientId == null || sameId(task.clientId, selectedClientId))
             && (selectedProjectId == null || sameId(task.projectId, selectedProjectId))
@@ -743,6 +811,8 @@ export default function TasksPage({
         if (parsedClientId == null) {
             setSelectedClientId(null);
             setSelectedProjectId(null);
+            sessionStorage.removeItem("dev-productivity:tasks:selected-client-id");
+            sessionStorage.removeItem("dev-productivity:tasks:selected-project-id");
             setSelectedTaskId(null);
             closeTransientDialogs();
             return;
@@ -755,6 +825,12 @@ export default function TasksPage({
 
         setSelectedClientId(parsedClientId);
         setSelectedProjectId(nextProjects[0]?.id ?? null);
+        sessionStorage.setItem("dev-productivity:tasks:selected-client-id", String(parsedClientId));
+        if (nextProjects[0]?.id == null) {
+            sessionStorage.removeItem("dev-productivity:tasks:selected-project-id");
+        } else {
+            sessionStorage.setItem("dev-productivity:tasks:selected-project-id", String(nextProjects[0].id));
+        }
         setSelectedTaskId(tasks.find(task =>
             sameId(task.organizationId, selectedOrganizationId)
             && sameId(task.clientId, parsedClientId)
@@ -769,6 +845,7 @@ export default function TasksPage({
         }
 
         setSelectedClientId(null);
+        sessionStorage.removeItem("dev-productivity:tasks:selected-client-id");
         setSelectedTaskId(tasks.find(task =>
             (selectedOrganizationId == null || sameId(task.organizationId, selectedOrganizationId))
             && (selectedProjectId == null || sameId(task.projectId, selectedProjectId))
@@ -785,6 +862,11 @@ export default function TasksPage({
         }
 
         setSelectedProjectId(parsedProjectId);
+        if (parsedProjectId == null) {
+            sessionStorage.removeItem("dev-productivity:tasks:selected-project-id");
+        } else {
+            sessionStorage.setItem("dev-productivity:tasks:selected-project-id", String(parsedProjectId));
+        }
         setSelectedTaskId(tasks.find(task =>
             sameId(task.organizationId, selectedOrganizationId)
             && sameId(task.clientId, selectedClientId)
@@ -799,6 +881,7 @@ export default function TasksPage({
         }
 
         setSelectedProjectId(null);
+        sessionStorage.removeItem("dev-productivity:tasks:selected-project-id");
         setSelectedTaskId(tasks.find(task =>
             (selectedOrganizationId == null || sameId(task.organizationId, selectedOrganizationId))
             && (selectedClientId == null || sameId(task.clientId, selectedClientId))
@@ -919,7 +1002,7 @@ export default function TasksPage({
     }, [draftTask?.id, editorOpen]);
 
     useEffect(() => {
-        if (!editorOpen || validationDialogOpen || warningDialogOpen) {
+        if (!editorOpen || validationDialogOpen || warningDialogOpen || deleteConfirmOpen) {
             return undefined;
         }
 
@@ -934,7 +1017,7 @@ export default function TasksPage({
 
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [editorOpen, validationDialogOpen, warningDialogOpen]);
+    }, [deleteConfirmOpen, editorOpen, validationDialogOpen, warningDialogOpen]);
 
     const renderRow = (task) => {
         const isSelected = sameId(task.id, selectedTaskId);
@@ -997,7 +1080,6 @@ export default function TasksPage({
                 <div className="tracking-topbar-main">
                     <div>
                         <h2>Tasks</h2>
-                        <p>Master data workspace for task records</p>
                     </div>
                 </div>
             </header>
@@ -1102,7 +1184,10 @@ export default function TasksPage({
                                 <input
                                     type="checkbox"
                                     checked={showIncompleteOnly}
-                                    onChange={event => setShowIncompleteOnly(event.target.checked)}
+                                    onChange={event => {
+                                        setShowIncompleteOnly(event.target.checked);
+                                        sessionStorage.setItem("dev-productivity:tasks:show-incomplete-only", String(event.target.checked));
+                                    }}
                                 />
                                 <span>Only open tasks</span>
                             </label>

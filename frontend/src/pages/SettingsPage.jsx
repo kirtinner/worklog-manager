@@ -1,10 +1,5 @@
 import { useState } from "react";
 import SoftwareProductsSettingsTable from "../components/SoftwareProductsSettingsTable";
-import {
-    createSoftwareProduct,
-    deleteSoftwareProduct,
-    updateSoftwareProduct
-} from "../services/softwareProductsService";
 
 function getApiErrorMessage(error, fallbackMessage) {
     const responseData = error?.response?.data;
@@ -12,11 +7,6 @@ function getApiErrorMessage(error, fallbackMessage) {
         ? responseData
         : responseData?.message || responseData?.error || (responseData ? JSON.stringify(responseData) : error?.message);
     return message || fallbackMessage;
-}
-
-function areSoftwareProductsEqual(left, right) {
-    return left.shortName === right.shortName
-        && left.fullName === right.fullName;
 }
 
 export default function SettingsPage({
@@ -35,10 +25,6 @@ export default function SettingsPage({
     const [settingsMessage, setSettingsMessage] = useState("");
     const [settingsSaveError, setSettingsSaveError] = useState("");
     const [settingsSaving, setSettingsSaving] = useState(false);
-    const [softwareProductsDraft, setSoftwareProductsDraft] = useState(softwareProducts.map(product => ({ ...product })));
-    const [softwareProductsSaveError, setSoftwareProductsSaveError] = useState("");
-    const [softwareProductsMessage, setSoftwareProductsMessage] = useState("");
-    const [softwareProductsSaving, setSoftwareProductsSaving] = useState(false);
 
     const handleSaveUserSettings = async () => {
         const parsedLimit = Number(settingsDraftLimit);
@@ -65,51 +51,11 @@ export default function SettingsPage({
         }
     };
 
-    const handleApplySoftwareProducts = async () => {
-        setSoftwareProductsMessage("");
-        setSoftwareProductsSaveError("");
-        setSoftwareProductsSaving(true);
-
-        const originalProductsById = new Map(softwareProducts.map(product => [product.id, product]));
-        const draftProductsById = new Map(softwareProductsDraft.map(product => [product.id, product]));
-
-        try {
-            for (const originalProduct of softwareProducts) {
-                if (!draftProductsById.has(originalProduct.id)) {
-                    await deleteSoftwareProduct(originalProduct.id);
-                }
-            }
-
-            const nextSoftwareProducts = [];
-            for (const draftProduct of softwareProductsDraft) {
-                const originalProduct = originalProductsById.get(draftProduct.id);
-                const payload = {
-                    shortName: draftProduct.shortName.trim(),
-                    fullName: draftProduct.fullName.trim()
-                };
-
-                if (!payload.shortName || !payload.fullName) {
-                    throw new Error("Software Product shortName and fullName are required.");
-                }
-
-                if (originalProduct) {
-                    const savedProduct = areSoftwareProductsEqual(draftProduct, originalProduct)
-                        ? originalProduct
-                        : await updateSoftwareProduct(originalProduct.id, payload);
-                    nextSoftwareProducts.push(savedProduct);
-                } else {
-                    const savedProduct = await createSoftwareProduct(payload);
-                    nextSoftwareProducts.push(savedProduct);
-                }
-            }
-
-            onSoftwareProductsChange(nextSoftwareProducts.map(product => ({ ...product })));
-            setSoftwareProductsMessage("Software products saved.");
-        } catch (error) {
-            setSoftwareProductsSaveError(getApiErrorMessage(error, "Unable to save software products."));
-        } finally {
-            setSoftwareProductsSaving(false);
-        }
+    const handleSoftwareProductsChange = (nextProductsOrUpdater) => {
+        const nextProducts = typeof nextProductsOrUpdater === "function"
+            ? nextProductsOrUpdater(softwareProducts)
+            : nextProductsOrUpdater;
+        onSoftwareProductsChange(nextProducts.map(product => ({ ...product })));
     };
 
     return (
@@ -118,7 +64,6 @@ export default function SettingsPage({
                 <div className="tracking-topbar-main">
                     <div>
                         <h2>Settings</h2>
-                        <p>User preferences and application reference settings</p>
                     </div>
                 </div>
             </header>
@@ -196,25 +141,11 @@ export default function SettingsPage({
                             {softwareProductsError ? (
                                 <div className="tracking-modal-error">Software products: {softwareProductsError}</div>
                             ) : null}
-                            {softwareProductsSaveError ? (
-                                <div className="tracking-modal-error">{softwareProductsSaveError}</div>
-                            ) : null}
-                            {softwareProductsMessage ? (
-                                <div className="tracking-status-banner tracking-status-banner-success settings-inline-status">{softwareProductsMessage}</div>
-                            ) : null}
                         </div>
-                        <button
-                            type="button"
-                            className="tracking-save-button"
-                            onClick={handleApplySoftwareProducts}
-                            disabled={softwareProductsLoading || softwareProductsSaving}
-                        >
-                            Apply
-                        </button>
                     </div>
                     <SoftwareProductsSettingsTable
-                        softwareProducts={softwareProductsDraft}
-                        onSoftwareProductsChange={setSoftwareProductsDraft}
+                        softwareProducts={softwareProducts}
+                        onSoftwareProductsChange={handleSoftwareProductsChange}
                     />
                 </section>
             </div>

@@ -126,6 +126,7 @@ public class TaskService {
         task.setTaskNumber(request.getTaskNumber().trim());
         task.setName(request.getName().trim());
         task.setComment(request.getComment());
+        task.setTaskLink(request.getTaskLink());
         task.setDescription(request.getDescription());
         task.setImplementationDetails(request.getImplementationDetails());
         task.setEstimatedHours(request.getEstimatedHours());
@@ -203,6 +204,7 @@ public class TaskService {
                 .taskNumber(task.getTaskNumber())
                 .name(task.getName())
                 .comment(task.getComment())
+                .taskLink(task.getTaskLink())
                 .description(task.getDescription())
                 .implementationDetails(task.getImplementationDetails())
                 .estimatedHours(task.getEstimatedHours() == null ? null : task.getEstimatedHours().doubleValue())

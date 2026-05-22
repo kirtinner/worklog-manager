@@ -246,6 +246,22 @@ textarea:focus {
   margin-top: -2px;
 }
 
+.login-modal {
+  width: min(420px, calc(100vw - 32px));
+  min-width: min(360px, calc(100vw - 32px));
+  min-height: 0;
+}
+
+.login-modal-error {
+  margin-top: 12px;
+}
+
+.login-empty-workspace {
+  width: 100%;
+  height: 100%;
+  background: #eef1f5;
+}
+
 .app-shell-main {
   width: 100%;
   max-width: 100%;
@@ -426,11 +442,19 @@ textarea:focus {
 }
 
 .organizations-col-short {
-  width: 24%;
+  width: 22%;
 }
 
 .organizations-col-full {
-  width: 76%;
+  width: 72%;
+}
+
+.organizations-col-current {
+  width: 6%;
+}
+
+.organizations-current-cell {
+  text-align: center;
 }
 
 .organizations-toolbar {
@@ -509,15 +533,48 @@ textarea:focus {
 
 .clients-filter-bar {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 12px 14px;
+  flex-wrap: wrap;
   width: 100%;
   min-width: 0;
   margin-bottom: 14px;
-  padding: 10px 14px;
-  border: 1px solid #dfe4ec;
+  padding: 8px 14px;
+  border: 1px solid #b9d2ec;
   border-radius: 8px;
-  background: #f3efe7;
+  background: #dcebf9;
+  box-shadow: 0 1px 3px rgba(28, 85, 135, 0.12);
+  box-sizing: border-box;
+}
+
+.clients-filter-bar .selector-clear-control {
+  flex: 0 0 100%;
+}
+
+.clients-filter-bar.tasks-filter-header-row {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.clients-filter-bar.tasks-filter-header-row > .tasks-filter-heading {
+  display: block;
+  min-height: 42px;
+  padding: 12px 14px;
+  border: 1px solid #b9d2ec;
+  border-radius: 8px;
+  background: #dcebf9;
+  box-shadow: 0 1px 3px rgba(28, 85, 135, 0.12);
+  box-sizing: border-box;
+}
+
+.clients-filter-bar.tasks-filter-header-row > .selector-clear-control {
+  padding: 0 14px;
   box-sizing: border-box;
 }
 
@@ -991,8 +1048,9 @@ textarea:focus {
   align-items: center;
   min-height: 42px;
   padding: 0 14px;
-  border-bottom: 1px solid #e5e9f0;
-  background: #f3efe7;
+  border-bottom: 1px solid #b9d2ec;
+  background: #dcebf9;
+  box-shadow: 0 1px 3px rgba(28, 85, 135, 0.12);
 }
 
 .tracking-panel-header h3 {
@@ -1116,10 +1174,10 @@ textarea:focus {
 }
 
 .tracking-calendar-cell-weekend {
-  background: #f7f4ee;
-  border-color: #e0d5c6;
+  background: var(--app-selection-bg);
+  border-color: #d9dee7;
   color: #2f3b4a;
-  box-shadow: inset 0 1px 0 #ffffff, inset 0 -1px 0 #e8ddd0;
+  box-shadow: inset 0 1px 0 #ffffff, inset 0 -1px 0 #c9ddf4;
 }
 
 .tracking-calendar-cell-selected {
@@ -1218,6 +1276,7 @@ textarea:focus {
   background: #fbfcfe;
 }
 
+.tracking-modal-editor .tracking-modal-header,
 .tracking-modal-task-editor .tracking-modal-header {
   min-height: 42px;
   padding: 0 14px;
@@ -1347,8 +1406,12 @@ textarea:focus {
 
 .tracking-modal-task-editor {
   width: min(1120px, calc(100vw - 32px));
+  height: min(860px, calc(100vh - 32px));
+  min-width: min(900px, calc(100vw - 32px));
+  min-height: min(680px, calc(100vh - 32px));
   max-width: calc(100vw - 32px);
   max-height: calc(100vh - 32px);
+  resize: both;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1356,13 +1419,40 @@ textarea:focus {
   box-shadow: none;
 }
 
-.tracking-modal-task-editor-body {
+.tracking-modal-editor {
+  width: min(560px, calc(100vw - 32px));
+  min-width: min(420px, calc(100vw - 32px));
+  min-height: 320px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  resize: both;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  overflow: hidden;
+}
+
+.tracking-modal-editor .tracking-modal-body {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
+}
+
+.tracking-modal-editor .tracking-modal-field > span {
+  font-weight: 600;
+}
+
+.tracking-modal-editor .tracking-modal-actions {
+  flex: 0 0 auto;
+  margin-top: auto;
+}
+
+.tracking-modal-task-editor-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .tracking-modal-worklog-editor {
@@ -1381,6 +1471,10 @@ textarea:focus {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
+}
+
+.tracking-modal-worklog-editor .tracking-modal-field > span {
+  font-weight: 600;
 }
 
 .tracking-modal-worklog-editor .tracking-modal-actions {
@@ -1405,7 +1499,7 @@ textarea:focus {
     "project ."
     "task-number software"
     "name name"
-    "actual estimated"
+    "hours link"
     "comment comment";
   gap: 10px 12px;
   align-items: start;
@@ -1456,12 +1550,44 @@ textarea:focus {
   grid-area: name;
 }
 
-.tasks-editor-field-actual {
-  grid-area: actual;
+.tasks-editor-hours-row {
+  grid-area: hours;
+  display: grid;
+  grid-template-columns: minmax(0, 110px) minmax(0, 130px);
+  gap: 10px;
+  align-items: start;
+  max-width: 260px;
 }
 
-.tasks-editor-field-estimated {
-  grid-area: estimated;
+.tasks-editor-field-link {
+  grid-area: link;
+}
+
+.tasks-editor-field-actual input,
+.tasks-editor-field-estimated input {
+  width: 100%;
+}
+
+.tasks-editor-link-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.tasks-editor-link-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
+.tasks-editor-link-open-disabled {
+  opacity: 0.45;
+  cursor: default;
+  pointer-events: none;
 }
 
 .tasks-editor-field-comment {
@@ -1480,7 +1606,7 @@ textarea:focus {
 }
 
 .tasks-editor-field-comment textarea {
-  min-height: 74px;
+  min-height: 52px;
   resize: vertical;
 }
 
@@ -1492,7 +1618,9 @@ textarea:focus {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex: 1 1 320px;
   min-height: 0;
+  overflow: hidden;
   padding: 0;
   background: #eef1f5;
 }
@@ -1501,12 +1629,13 @@ textarea:focus {
   min-height: 42px;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
   gap: 12px;
   padding: 0 14px;
   border-bottom: 1px solid #b9d2ec;
   background: #dcebf9;
   box-shadow: 0 1px 3px rgba(28, 85, 135, 0.12);
+  flex: 0 0 auto;
 }
 
 .tasks-editor-timesheet-header h4 {
@@ -1514,6 +1643,15 @@ textarea:focus {
   color: #344054;
   font-size: 14px;
   font-weight: 700;
+}
+
+.tasks-editor-timesheet-total {
+  margin-left: auto;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .tasks-editor-timesheet-error,
@@ -1533,7 +1671,8 @@ textarea:focus {
 }
 
 .tasks-editor-timesheet-table-wrap {
-  max-height: 210px;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
   border: 0;
   border-radius: 0;
@@ -1571,8 +1710,7 @@ textarea:focus {
   width: 60%;
 }
 
-.tasks-editor-timesheet-table tbody td,
-.tasks-editor-timesheet-table tfoot td {
+.tasks-editor-timesheet-table tbody td {
   border-bottom: 1px solid #e5e9f0;
   color: #344054;
   font-size: 12px;
@@ -1583,14 +1721,6 @@ textarea:focus {
 
 .tasks-editor-timesheet-table tbody tr:last-child td {
   border-bottom: 1px solid #d9dee7;
-}
-
-.tasks-editor-timesheet-table tfoot td {
-  position: sticky;
-  bottom: 0;
-  z-index: 1;
-  background: #eef1f5;
-  font-weight: 600;
 }
 
 .tasks-editor-field-completed {

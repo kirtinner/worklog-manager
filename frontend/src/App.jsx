@@ -34,9 +34,25 @@ function getApiErrorMessage(error, fallbackMessage) {
     return error?.message ? `${fallbackMessage} (${error.message})` : fallbackMessage;
 }
 
+const ACTIVE_PAGE_STORAGE_KEY = "dev-productivity:active-page";
+const VALID_PAGES = new Set([
+    "time-tracking",
+    "reports",
+    "organizations",
+    "clients",
+    "projects",
+    "tasks",
+    "settings"
+]);
+
+function getInitialPage() {
+    const storedPage = sessionStorage.getItem(ACTIVE_PAGE_STORAGE_KEY);
+    return VALID_PAGES.has(storedPage) ? storedPage : "time-tracking";
+}
+
 function App() {
     const [isAuth, setIsAuth] = useState(!!localStorage.getItem("token"));
-    const [page, setPage] = useState("time-tracking");
+    const [page, setPage] = useState(getInitialPage);
     const [organizations, setOrganizations] = useState([]);
     const [softwareProducts, setSoftwareProducts] = useState([]);
     const [userSettings, setUserSettings] = useState(DEFAULT_USER_SETTINGS);
@@ -124,9 +140,19 @@ function App() {
         setSoftwareProductsError("");
     };
 
+    const navigateToPage = (nextPage) => {
+        if (!VALID_PAGES.has(nextPage)) {
+            return;
+        }
+
+        sessionStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, nextPage);
+        setPage(nextPage);
+    };
+
     const logout = () => {
         localStorage.removeItem("token");
         setIsAuth(false);
+        sessionStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, "time-tracking");
         setPage("time-tracking");
         setOrganizations([]);
         setSoftwareProducts([]);
@@ -172,7 +198,7 @@ function App() {
                     />
                 );
             case "organizations":
-                return <OrganizationsPage />;
+                return <OrganizationsPage currentOrganizationId={currentOrganizationId} />;
             case "settings":
                 return (
                     <SettingsPage
@@ -204,33 +230,30 @@ function App() {
     };
 
     return (
-        <div>
-            {isAuth ? (
-                <UserSettingsContext.Provider
-                    value={{
-                        userSettings,
-                        userSettingsLoading,
-                        userSettingsError,
-                        updateUserSettingsState: handleUserSettingsChange
-                    }}
-                >
-                    <AppNavigationShell
-                        activePage={page}
-                        onNavigate={setPage}
-                        onLogout={logout}
-                    >
-                        {renderPage()}
-                    </AppNavigationShell>
-                </UserSettingsContext.Provider>
-            ) : (
+        <UserSettingsContext.Provider
+            value={{
+                userSettings,
+                userSettingsLoading,
+                userSettingsError,
+                updateUserSettingsState: handleUserSettingsChange
+            }}
+        >
+            <AppNavigationShell
+                activePage={page}
+                onNavigate={isAuth ? navigateToPage : () => {}}
+                onLogout={isAuth ? logout : () => {}}
+            >
+                {isAuth ? renderPage() : <div className="login-empty-workspace" aria-hidden="true" />}
+            </AppNavigationShell>
+            {!isAuth ? (
                 <LoginPage
                     onLogin={() => {
                         setIsAuth(true);
-                        setPage("time-tracking");
+                        navigateToPage(getInitialPage());
                     }}
                 />
-            )}
-        </div>
+            ) : null}
+        </UserSettingsContext.Provider>
     );
 }
 

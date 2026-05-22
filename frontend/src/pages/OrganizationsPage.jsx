@@ -28,7 +28,7 @@ function validateOrganization(organization) {
     return issues;
 }
 
-export default function OrganizationsPage() {
+export default function OrganizationsPage({ currentOrganizationId = null }) {
     const [organizations, setOrganizations] = useState([]);
     const [selectedOrganizationId, setSelectedOrganizationId] = useState(null);
     const [editorOpen, setEditorOpen] = useState(false);
@@ -39,6 +39,7 @@ export default function OrganizationsPage() {
     const [warningDialogOpen, setWarningDialogOpen] = useState(false);
     const [warningTitle, setWarningTitle] = useState("Delete not available");
     const [warningMessage, setWarningMessage] = useState("");
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const handleCancelRef = useRef(() => {});
 
     const organizationCountLabel = useMemo(
@@ -54,6 +55,7 @@ export default function OrganizationsPage() {
         setWarningDialogOpen(false);
         setWarningTitle("Delete not available");
         setWarningMessage("");
+        setDeleteConfirmOpen(false);
     }, []);
 
     const closeEditor = useCallback(() => {
@@ -114,6 +116,19 @@ export default function OrganizationsPage() {
             return;
         }
 
+        setDeleteConfirmOpen(true);
+    };
+
+    const handleCancelDeleteOrganization = () => {
+        setDeleteConfirmOpen(false);
+    };
+
+    const handleConfirmDeleteOrganization = async () => {
+        if (!selectedOrganization || editorOpen) {
+            setDeleteConfirmOpen(false);
+            return;
+        }
+
         const organizationId = selectedOrganization.id;
         try {
             await apiDeleteOrganization(organizationId);
@@ -131,6 +146,7 @@ export default function OrganizationsPage() {
             setWarningTitle("Delete not available");
             setWarningMessage(message);
             setWarningDialogOpen(true);
+            setDeleteConfirmOpen(false);
         }
     };
 
@@ -223,7 +239,7 @@ export default function OrganizationsPage() {
     }, []);
 
     useEffect(() => {
-        if (!editorOpen || validationDialogOpen || warningDialogOpen) {
+        if (!editorOpen || validationDialogOpen || warningDialogOpen || deleteConfirmOpen) {
             return undefined;
         }
 
@@ -238,7 +254,7 @@ export default function OrganizationsPage() {
 
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [editorOpen, validationDialogOpen, warningDialogOpen]);
+    }, [deleteConfirmOpen, editorOpen, validationDialogOpen, warningDialogOpen]);
 
     const renderRow = (organization) => {
         const isSelected = organization.id === selectedOrganizationId;
@@ -250,6 +266,13 @@ export default function OrganizationsPage() {
                 onClick={() => handleRowSelect(organization)}
                 onDoubleClick={() => handleRowEditRequest(organization)}
             >
+                <td className="organizations-current-cell">
+                    {String(organization.id) === String(currentOrganizationId) ? (
+                        <span className="tasks-completed-indicator" aria-label="Current organization" title="Current organization">
+                            {"\u2713"}
+                        </span>
+                    ) : null}
+                </td>
                 <td>
                     <span className="organizations-readonly-cell">{organization.shortName}</span>
                 </td>
@@ -266,7 +289,6 @@ export default function OrganizationsPage() {
                 <div className="tracking-topbar-main">
                     <div>
                         <h2>Organizations</h2>
-                        <p>Master data workspace for organization records</p>
                     </div>
                 </div>
             </header>
@@ -310,13 +332,15 @@ export default function OrganizationsPage() {
                     </div>
 
                     <div className="tracking-panel-body organizations-panel-body">
-                        <table className="app-master-data-table organizations-table">
+                        <table className="app-master-data-table organizations-table tasks-table">
                             <colgroup>
+                                <col className="organizations-col-current" />
                                 <col className="organizations-col-short" />
                                 <col className="organizations-col-full" />
                             </colgroup>
                             <thead>
                                 <tr>
+                                    <th></th>
                                     <th>Short Name</th>
                                     <th>Full Name</th>
                                 </tr>
@@ -330,7 +354,7 @@ export default function OrganizationsPage() {
             {editorOpen && draftOrganization && (
                 <div className="tracking-modal-overlay" role="presentation">
                     <div
-                        className="tracking-modal tracking-modal-confirm tracking-modal-organization-editor"
+                        className="tracking-modal tracking-modal-confirm tracking-modal-editor tracking-modal-organization-editor"
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby="organizations-editor-title"
@@ -398,6 +422,36 @@ export default function OrganizationsPage() {
                         <div className="tracking-modal-actions">
                             <button type="button" className="tracking-modal-button" onClick={() => setValidationDialogOpen(false)}>
                                 OK
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {deleteConfirmOpen && (
+                <div className="tracking-modal-overlay" role="presentation">
+                    <div
+                        className="tracking-modal tracking-modal-confirm"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="organizations-delete-confirm-title"
+                    >
+                        <div className="tracking-modal-header">
+                            <h3 id="organizations-delete-confirm-title">Delete organization</h3>
+                        </div>
+                        <div className="tracking-modal-body">
+                            <p className="tracking-modal-text">Delete selected organization?</p>
+                        </div>
+                        <div className="tracking-modal-actions">
+                            <button type="button" className="tracking-modal-button" onClick={handleConfirmDeleteOrganization}>
+                                Delete
+                            </button>
+                            <button
+                                type="button"
+                                className="tracking-modal-button tracking-modal-button-secondary"
+                                onClick={handleCancelDeleteOrganization}
+                            >
+                                Cancel
                             </button>
                         </div>
                     </div>

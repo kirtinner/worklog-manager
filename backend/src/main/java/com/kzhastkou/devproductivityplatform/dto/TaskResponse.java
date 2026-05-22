@@ -19,6 +19,7 @@ public class TaskResponse {
     private String taskNumber;
     private String name;
     private String comment;
+    private String taskLink;
     private String description;
     private String implementationDetails;
     private Double estimatedHours;

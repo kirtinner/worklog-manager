@@ -33,12 +33,27 @@ function validateClient(client) {
     return issues;
 }
 
+function readStoredNumber(key) {
+    const value = sessionStorage.getItem(key);
+    if (value == null || value === "") {
+        return null;
+    }
+
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
 export default function ClientsPage({
     organizations = [],
     currentOrganizationId = null
 }) {
     const [clients, setClients] = useState([]);
-    const [selectedOrganizationId, setSelectedOrganizationId] = useState(currentOrganizationId ?? organizations[0]?.id ?? null);
+    const [selectedOrganizationId, setSelectedOrganizationId] = useState(
+        readStoredNumber("dev-productivity:clients:selected-organization-id")
+        ?? currentOrganizationId
+        ?? organizations[0]?.id
+        ?? null
+    );
     const [selectedClientId, setSelectedClientId] = useState(null);
     const [editorOpen, setEditorOpen] = useState(false);
     const [editorMode, setEditorMode] = useState(null);
@@ -48,6 +63,7 @@ export default function ClientsPage({
     const [warningDialogOpen, setWarningDialogOpen] = useState(false);
     const [warningTitle, setWarningTitle] = useState("Delete not available");
     const [warningMessage, setWarningMessage] = useState("");
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const handleCancelRef = useRef(() => {});
 
     const filteredClients = useMemo(
@@ -71,8 +87,10 @@ export default function ClientsPage({
                     return;
                 }
 
+                const storedOrganizationId = readStoredNumber("dev-productivity:clients:selected-organization-id");
                 const initialOrganizationId =
-                    currentOrganizationId
+                    storedOrganizationId
+                    ?? currentOrganizationId
                     ?? organizations[0]?.id
                     ?? nextClients[0]?.organizationId
                     ?? null;
@@ -101,6 +119,7 @@ export default function ClientsPage({
         setWarningDialogOpen(false);
         setWarningTitle("Delete not available");
         setWarningMessage("");
+        setDeleteConfirmOpen(false);
     }, []);
 
     const closeEditor = useCallback(() => {
@@ -171,6 +190,11 @@ export default function ClientsPage({
         const parsedOrganizationId = nextOrganizationId === "" ? null : Number(nextOrganizationId);
 
         setSelectedOrganizationId(parsedOrganizationId);
+        if (parsedOrganizationId == null) {
+            sessionStorage.removeItem("dev-productivity:clients:selected-organization-id");
+        } else {
+            sessionStorage.setItem("dev-productivity:clients:selected-organization-id", String(parsedOrganizationId));
+        }
         setSelectedClientId(clients.find(client =>
             parsedOrganizationId == null || client.organizationId === parsedOrganizationId
         )?.id ?? null);
@@ -179,11 +203,25 @@ export default function ClientsPage({
 
     const handleClearOrganizationFilter = () => {
         setSelectedOrganizationId(null);
+        sessionStorage.removeItem("dev-productivity:clients:selected-organization-id");
         closeTransientDialogs();
     };
 
     const handleDeleteClient = async () => {
         if (!selectedClient || editorOpen) {
+            return;
+        }
+
+        setDeleteConfirmOpen(true);
+    };
+
+    const handleCancelDeleteClient = () => {
+        setDeleteConfirmOpen(false);
+    };
+
+    const handleConfirmDeleteClient = async () => {
+        if (!selectedClient || editorOpen) {
+            setDeleteConfirmOpen(false);
             return;
         }
 
@@ -204,6 +242,7 @@ export default function ClientsPage({
             setWarningTitle("Delete not available");
             setWarningMessage(message);
             setWarningDialogOpen(true);
+            setDeleteConfirmOpen(false);
         }
     };
 
@@ -275,7 +314,7 @@ export default function ClientsPage({
     });
 
     useEffect(() => {
-        if (!editorOpen || validationDialogOpen || warningDialogOpen) {
+        if (!editorOpen || validationDialogOpen || warningDialogOpen || deleteConfirmOpen) {
             return undefined;
         }
 
@@ -290,7 +329,7 @@ export default function ClientsPage({
 
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [editorOpen, validationDialogOpen, warningDialogOpen]);
+    }, [deleteConfirmOpen, editorOpen, validationDialogOpen, warningDialogOpen]);
 
     const renderRow = (client) => {
         const isSelected = client.id === selectedClientId;
@@ -318,19 +357,18 @@ export default function ClientsPage({
                 <div className="tracking-topbar-main">
                     <div>
                         <h2>Clients</h2>
-                        <p>Master data workspace for client records</p>
                     </div>
                 </div>
             </header>
 
-            <div className="clients-filter-bar">
-                <label className="clients-filter-label" htmlFor="clients-organization-select">
+            <div className="clients-filter-bar tasks-filter-header-row">
+                <label className="tasks-filter-heading" htmlFor="clients-organization-select">
                     Organization
                 </label>
                 <div className="selector-clear-control">
                     <select
                         id="clients-organization-select"
-                        className="clients-filter-select"
+                        className="clients-filter-select tasks-filter-select"
                         value={String(selectedOrganizationId ?? "")}
                         onChange={event => handleOrganizationChange(event.target.value)}
                     >
@@ -388,7 +426,7 @@ export default function ClientsPage({
                     </div>
 
                     <div className="tracking-panel-body organizations-panel-body">
-                        <table className="app-master-data-table organizations-table">
+                        <table className="app-master-data-table organizations-table tasks-table">
                             <colgroup>
                                 <col className="organizations-col-short" />
                                 <col className="organizations-col-full" />
@@ -408,7 +446,7 @@ export default function ClientsPage({
             {editorOpen && draftClient && (
                 <div className="tracking-modal-overlay" role="presentation">
                     <div
-                        className="tracking-modal tracking-modal-confirm tracking-modal-client-editor"
+                        className="tracking-modal tracking-modal-confirm tracking-modal-editor tracking-modal-client-editor"
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby="clients-editor-title"
@@ -491,6 +529,31 @@ export default function ClientsPage({
                         <div className="tracking-modal-actions">
                             <button type="button" className="tracking-modal-button" onClick={() => setValidationDialogOpen(false)}>
                                 OK
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {deleteConfirmOpen && (
+                <div className="tracking-modal-overlay" role="presentation">
+                    <div className="tracking-modal tracking-modal-confirm" role="dialog" aria-modal="true" aria-labelledby="clients-delete-confirm-title">
+                        <div className="tracking-modal-header">
+                            <h3 id="clients-delete-confirm-title">Delete client</h3>
+                        </div>
+                        <div className="tracking-modal-body">
+                            <p className="tracking-modal-text">Delete selected client?</p>
+                        </div>
+                        <div className="tracking-modal-actions">
+                            <button type="button" className="tracking-modal-button" onClick={handleConfirmDeleteClient}>
+                                Delete
+                            </button>
+                            <button
+                                type="button"
+                                className="tracking-modal-button tracking-modal-button-secondary"
+                                onClick={handleCancelDeleteClient}
+                            >
+                                Cancel
                             </button>
                         </div>
                     </div>

@@ -46,14 +46,29 @@ function getFirstVisibleProjectId(sourceProjects, organizationId, clientId) {
     )?.id ?? null;
 }
 
+function readStoredNumber(key) {
+    const value = sessionStorage.getItem(key);
+    if (value == null || value === "") {
+        return null;
+    }
+
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
 export default function ProjectsPage({
     organizations = [],
     currentOrganizationId = null
 }) {
     const [clients, setClients] = useState([]);
     const [projects, setProjects] = useState([]);
-    const [selectedOrganizationId, setSelectedOrganizationId] = useState(currentOrganizationId ?? organizations[0]?.id ?? null);
-    const [selectedClientId, setSelectedClientId] = useState(null);
+    const [selectedOrganizationId, setSelectedOrganizationId] = useState(
+        readStoredNumber("dev-productivity:projects:selected-organization-id")
+        ?? currentOrganizationId
+        ?? organizations[0]?.id
+        ?? null
+    );
+    const [selectedClientId, setSelectedClientId] = useState(readStoredNumber("dev-productivity:projects:selected-client-id"));
     const [selectedProjectId, setSelectedProjectId] = useState(null);
     const [editorOpen, setEditorOpen] = useState(false);
     const [editorMode, setEditorMode] = useState(null);
@@ -63,6 +78,7 @@ export default function ProjectsPage({
     const [warningDialogOpen, setWarningDialogOpen] = useState(false);
     const [warningTitle, setWarningTitle] = useState("Delete not available");
     const [warningMessage, setWarningMessage] = useState("");
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const handleCancelRef = useRef(() => {});
 
     const filteredClients = useMemo(
@@ -100,12 +116,19 @@ export default function ProjectsPage({
                     return;
                 }
 
+                const storedOrganizationId = readStoredNumber("dev-productivity:projects:selected-organization-id");
+                const storedClientId = readStoredNumber("dev-productivity:projects:selected-client-id");
                 const initialOrganizationId =
-                    currentOrganizationId
+                    storedOrganizationId
+                    ?? currentOrganizationId
                     ?? organizations[0]?.id
                     ?? nextClients[0]?.organizationId
                     ?? null;
-                const initialClientId = nextClients.find(client => client.organizationId === initialOrganizationId)?.id ?? null;
+                const initialClientId = storedClientId != null && nextClients.some(client =>
+                    client.id === storedClientId && client.organizationId === initialOrganizationId
+                )
+                    ? storedClientId
+                    : nextClients.find(client => client.organizationId === initialOrganizationId)?.id ?? null;
                 const initialProjectId = getFirstVisibleProjectId(nextProjects, initialOrganizationId, initialClientId);
 
                 setClients(nextClients);
@@ -133,6 +156,7 @@ export default function ProjectsPage({
         setWarningDialogOpen(false);
         setWarningTitle("Delete not available");
         setWarningMessage("");
+        setDeleteConfirmOpen(false);
     }, []);
 
     const closeEditor = useCallback(() => {
@@ -150,6 +174,12 @@ export default function ProjectsPage({
 
         setSelectedOrganizationId(organizationId);
         setSelectedClientId(resolvedClientId);
+        sessionStorage.setItem("dev-productivity:projects:selected-organization-id", String(organizationId));
+        if (resolvedClientId == null) {
+            sessionStorage.removeItem("dev-productivity:projects:selected-client-id");
+        } else {
+            sessionStorage.setItem("dev-productivity:projects:selected-client-id", String(resolvedClientId));
+        }
         setSelectedProjectId(getFirstVisibleProjectId(sourceProjects, organizationId, resolvedClientId));
     };
 
@@ -228,6 +258,7 @@ export default function ProjectsPage({
 
     const handleClearOrganizationFilter = () => {
         setSelectedOrganizationId(null);
+        sessionStorage.removeItem("dev-productivity:projects:selected-organization-id");
         closeTransientDialogs();
     };
 
@@ -235,17 +266,36 @@ export default function ProjectsPage({
         const parsedClientId = nextClientId === "" ? null : Number(nextClientId);
 
         setSelectedClientId(parsedClientId);
+        if (parsedClientId == null) {
+            sessionStorage.removeItem("dev-productivity:projects:selected-client-id");
+        } else {
+            sessionStorage.setItem("dev-productivity:projects:selected-client-id", String(parsedClientId));
+        }
         setSelectedProjectId(getFirstVisibleProjectId(projects, selectedOrganizationId, parsedClientId));
         closeTransientDialogs();
     };
 
     const handleClearClientFilter = () => {
         setSelectedClientId(null);
+        sessionStorage.removeItem("dev-productivity:projects:selected-client-id");
         closeTransientDialogs();
     };
 
     const handleDeleteProject = async () => {
         if (!selectedProject || editorOpen) {
+            return;
+        }
+
+        setDeleteConfirmOpen(true);
+    };
+
+    const handleCancelDeleteProject = () => {
+        setDeleteConfirmOpen(false);
+    };
+
+    const handleConfirmDeleteProject = async () => {
+        if (!selectedProject || editorOpen) {
+            setDeleteConfirmOpen(false);
             return;
         }
 
@@ -266,6 +316,7 @@ export default function ProjectsPage({
             setWarningTitle("Delete not available");
             setWarningMessage(message);
             setWarningDialogOpen(true);
+            setDeleteConfirmOpen(false);
         }
     };
 
@@ -342,7 +393,7 @@ export default function ProjectsPage({
     });
 
     useEffect(() => {
-        if (!editorOpen || validationDialogOpen || warningDialogOpen) {
+        if (!editorOpen || validationDialogOpen || warningDialogOpen || deleteConfirmOpen) {
             return undefined;
         }
 
@@ -357,7 +408,7 @@ export default function ProjectsPage({
 
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [editorOpen, validationDialogOpen, warningDialogOpen]);
+    }, [deleteConfirmOpen, editorOpen, validationDialogOpen, warningDialogOpen]);
 
     const renderRow = (project) => {
         const isSelected = project.id === selectedProjectId;
@@ -385,20 +436,26 @@ export default function ProjectsPage({
                 <div className="tracking-topbar-main">
                     <div>
                         <h2>Projects</h2>
-                        <p>Master data workspace for project records</p>
                     </div>
                 </div>
             </header>
 
-            <section className="projects-filter-bar">
-                <div className="projects-filter-field">
-                    <label className="clients-filter-label" htmlFor="projects-organization-select">
+            <section className="tasks-filter-bar">
+                <div className="tasks-filter-header-row">
+                    <label className="tasks-filter-heading" htmlFor="projects-organization-select">
                         Organization
                     </label>
+                    <label className="tasks-filter-heading" htmlFor="projects-client-select">
+                        Client
+                    </label>
+                </div>
+
+                <div className="tasks-filter-values-row">
+                    <div className="tasks-filter-field">
                     <div className="selector-clear-control">
                         <select
                             id="projects-organization-select"
-                            className="clients-filter-select projects-filter-select"
+                            className="clients-filter-select tasks-filter-select"
                             value={String(selectedOrganizationId ?? "")}
                             onChange={event => handleOrganizationChange(event.target.value)}
                         >
@@ -417,14 +474,11 @@ export default function ProjectsPage({
                     </div>
                 </div>
 
-                <div className="projects-filter-field">
-                    <label className="clients-filter-label" htmlFor="projects-client-select">
-                        Client
-                    </label>
+                    <div className="tasks-filter-field">
                     <div className="selector-clear-control">
                         <select
                             id="projects-client-select"
-                            className="clients-filter-select projects-filter-select"
+                            className="clients-filter-select tasks-filter-select"
                             value={String(selectedClientId ?? "")}
                             onChange={event => handleClientChange(event.target.value)}
                             disabled={filteredClients.length === 0}
@@ -442,6 +496,7 @@ export default function ProjectsPage({
                             </button>
                         )}
                     </div>
+                </div>
                 </div>
             </section>
 
@@ -484,7 +539,7 @@ export default function ProjectsPage({
                     </div>
 
                     <div className="tracking-panel-body organizations-panel-body">
-                        <table className="app-master-data-table organizations-table">
+                        <table className="app-master-data-table organizations-table tasks-table">
                             <colgroup>
                                 <col className="organizations-col-short" />
                                 <col className="organizations-col-full" />
@@ -504,7 +559,7 @@ export default function ProjectsPage({
             {editorOpen && draftProject && (
                 <div className="tracking-modal-overlay" role="presentation">
                     <div
-                        className="tracking-modal tracking-modal-confirm tracking-modal-client-editor"
+                        className="tracking-modal tracking-modal-confirm tracking-modal-editor tracking-modal-client-editor"
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby="projects-editor-title"
@@ -610,6 +665,31 @@ export default function ProjectsPage({
                         <div className="tracking-modal-actions">
                             <button type="button" className="tracking-modal-button" onClick={() => setValidationDialogOpen(false)}>
                                 OK
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {deleteConfirmOpen && (
+                <div className="tracking-modal-overlay" role="presentation">
+                    <div className="tracking-modal tracking-modal-confirm" role="dialog" aria-modal="true" aria-labelledby="projects-delete-confirm-title">
+                        <div className="tracking-modal-header">
+                            <h3 id="projects-delete-confirm-title">Delete project</h3>
+                        </div>
+                        <div className="tracking-modal-body">
+                            <p className="tracking-modal-text">Delete selected project?</p>
+                        </div>
+                        <div className="tracking-modal-actions">
+                            <button type="button" className="tracking-modal-button" onClick={handleConfirmDeleteProject}>
+                                Delete
+                            </button>
+                            <button
+                                type="button"
+                                className="tracking-modal-button tracking-modal-button-secondary"
+                                onClick={handleCancelDeleteProject}
+                            >
+                                Cancel
                             </button>
                         </div>
                     </div>

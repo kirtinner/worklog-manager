@@ -1,4 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+    createSoftwareProduct,
+    deleteSoftwareProduct,
+    updateSoftwareProduct
+} from "../services/softwareProductsService";
 
 function createProduct(nextId) {
     return {
@@ -37,6 +42,7 @@ export default function SoftwareProductsSettingsTable({
     const [validationIssues, setValidationIssues] = useState([]);
     const [warningDialogOpen, setWarningDialogOpen] = useState(false);
     const [warningMessage, setWarningMessage] = useState("");
+    const [saving, setSaving] = useState(false);
     const [switchDialogOpen, setSwitchDialogOpen] = useState(false);
     const [pendingSelectionId, setPendingSelectionId] = useState(null);
     const handleCancelRef = useRef(() => {});
@@ -99,7 +105,7 @@ export default function SoftwareProductsSettingsTable({
         return !editingSoftwareProductIsNew;
     };
 
-    const commitDraft = (nextSelectedId = selectedSoftwareProductId) => {
+    const commitDraft = async (nextSelectedId = selectedSoftwareProductId) => {
         if (!draftProduct) {
             return false;
         }
@@ -111,22 +117,44 @@ export default function SoftwareProductsSettingsTable({
             return false;
         }
 
-        onSoftwareProductsChange(currentProducts =>
-            currentProducts.map(product =>
-                product.id === draftProduct.id
-                    ? { ...draftProduct }
-                    : product
-            )
-        );
+        setSaving(true);
+        try {
+            const payload = {
+                shortName: draftProduct.shortName.trim(),
+                fullName: draftProduct.fullName.trim()
+            };
+            const savedProduct = editingSoftwareProductIsNew
+                ? await createSoftwareProduct(payload)
+                : await updateSoftwareProduct(draftProduct.id, payload);
 
-        setSelectedSoftwareProductId(nextSelectedId);
-        setEditingSoftwareProductId(null);
-        setDraftProduct(null);
-        setEditingOriginalProduct(null);
-        setEditingSoftwareProductIsNew(false);
-        setEditingFallbackSelectionId(null);
-        closeModals();
-        return true;
+            onSoftwareProductsChange(currentProducts =>
+                currentProducts.map(product =>
+                    product.id === draftProduct.id
+                        ? savedProduct
+                        : product
+                )
+            );
+
+            setSelectedSoftwareProductId(savedProduct.id ?? nextSelectedId);
+            setEditingSoftwareProductId(null);
+            setDraftProduct(null);
+            setEditingOriginalProduct(null);
+            setEditingSoftwareProductIsNew(false);
+            setEditingFallbackSelectionId(null);
+            closeModals();
+            return true;
+        } catch (error) {
+            setWarningMessage(
+                error?.response?.data?.message ??
+                error?.response?.data?.error ??
+                error?.message ??
+                "Unable to save software product."
+            );
+            setWarningDialogOpen(true);
+            return false;
+        } finally {
+            setSaving(false);
+        }
     };
 
     const handleAddProduct = () => {
@@ -143,9 +171,9 @@ export default function SoftwareProductsSettingsTable({
         closeModals();
     };
 
-    const handleEditOrSave = () => {
+    const handleEditOrSave = async () => {
         if (editingSoftwareProductId != null) {
-            commitDraft();
+            await commitDraft();
             return;
         }
 
@@ -207,30 +235,44 @@ export default function SoftwareProductsSettingsTable({
         closeModals();
     };
 
-    const handleDeleteProduct = () => {
+    const handleDeleteProduct = async () => {
         if (!selectedSoftwareProduct) {
             return;
         }
 
-        onSoftwareProductsChange(currentProducts =>
-            currentProducts.filter(product => product.id !== selectedSoftwareProduct.id)
-        );
+        setSaving(true);
+        try {
+            await deleteSoftwareProduct(selectedSoftwareProduct.id);
+            onSoftwareProductsChange(currentProducts =>
+                currentProducts.filter(product => product.id !== selectedSoftwareProduct.id)
+            );
 
-        if (editingSoftwareProductId === selectedSoftwareProduct.id) {
-            setEditingSoftwareProductId(null);
-            setDraftProduct(null);
-            setEditingOriginalProduct(null);
-            setEditingSoftwareProductIsNew(false);
-            setEditingFallbackSelectionId(null);
+            if (editingSoftwareProductId === selectedSoftwareProduct.id) {
+                setEditingSoftwareProductId(null);
+                setDraftProduct(null);
+                setEditingOriginalProduct(null);
+                setEditingSoftwareProductIsNew(false);
+                setEditingFallbackSelectionId(null);
+            }
+
+            const remaining = softwareProducts.filter(product => product.id !== selectedSoftwareProduct.id);
+            setSelectedSoftwareProductId(remaining[0]?.id ?? null);
+            closeModals();
+        } catch (error) {
+            setWarningMessage(
+                error?.response?.data?.message ??
+                error?.response?.data?.error ??
+                error?.message ??
+                "Software product is used in the system and cannot be deleted."
+            );
+            setWarningDialogOpen(true);
+        } finally {
+            setSaving(false);
         }
-
-        const remaining = softwareProducts.filter(product => product.id !== selectedSoftwareProduct.id);
-        setSelectedSoftwareProductId(remaining[0]?.id ?? null);
-        closeModals();
     };
 
-    const handleSaveFromSwitchDialog = () => {
-        if (commitDraft(pendingSelectionId)) {
+    const handleSaveFromSwitchDialog = async () => {
+        if (await commitDraft(pendingSelectionId)) {
             setSwitchDialogOpen(false);
             setPendingSelectionId(null);
         }
@@ -327,24 +369,24 @@ export default function SoftwareProductsSettingsTable({
                 <div className="clients-toolbar">
                     {editingSoftwareProductId != null ? (
                         <>
-                            <button type="button" className="tracking-save-button" onClick={handleEditOrSave}>
+                            <button type="button" className="tracking-save-button" onClick={handleEditOrSave} disabled={saving}>
                                 Save
                             </button>
-                            <button type="button" className="tracking-save-button" onClick={handleCancel}>
+                            <button type="button" className="tracking-save-button" onClick={handleCancel} disabled={saving}>
                                 Cancel
                             </button>
                         </>
                     ) : (
                         <>
                             <div className="organizations-toolbar-actions">
-                                <button type="button" className="tracking-save-button" onClick={handleAddProduct}>
+                                <button type="button" className="tracking-save-button" onClick={handleAddProduct} disabled={saving}>
                                     Add
                                 </button>
                                 <button
                                     type="button"
                                     className="tracking-save-button"
                                     onClick={handleEditOrSave}
-                                    disabled={!selectedSoftwareProduct}
+                                    disabled={!selectedSoftwareProduct || saving}
                                 >
                                     Edit
                                 </button>
@@ -353,7 +395,7 @@ export default function SoftwareProductsSettingsTable({
                                 type="button"
                                 className="organizations-delete-button organizations-delete-button-separated"
                                 onClick={handleDeleteProduct}
-                                disabled={!selectedSoftwareProduct}
+                                disabled={!selectedSoftwareProduct || saving}
                             >
                                 Delete
                             </button>

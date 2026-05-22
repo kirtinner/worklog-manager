@@ -31,6 +31,9 @@ public class Task {
     @Column(length = 2000)
     private String comment;
 
+    @Column(length = 1000)
+    private String taskLink;
+
     @Column(length = 2000)
     private String description;
 

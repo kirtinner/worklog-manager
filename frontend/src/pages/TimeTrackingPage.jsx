@@ -68,6 +68,49 @@ function sameId(left, right) {
     return left != null && right != null && String(left) === String(right);
 }
 
+function parseDateKey(value) {
+    if (!value) {
+        return null;
+    }
+
+    const [year, month, day] = value.split("-").map(Number);
+    if (!year || !month || !day) {
+        return null;
+    }
+
+    return new Date(year, month - 1, day);
+}
+
+function isWeekend(date) {
+    const day = date.getDay();
+    return day === 0 || day === 6;
+}
+
+function subtractWorkingDaysInclusive(date, workingDays) {
+    const threshold = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    let countedDays = isWeekend(threshold) ? 0 : 1;
+
+    while (countedDays < workingDays) {
+        threshold.setDate(threshold.getDate() - 1);
+        if (!isWeekend(threshold)) {
+            countedDays += 1;
+        }
+    }
+
+    return threshold;
+}
+
+function isEarlierThanThreeWorkingDays(dateKey) {
+    const entryDate = parseDateKey(dateKey);
+    if (!entryDate) {
+        return false;
+    }
+
+    const today = new Date();
+    const threshold = subtractWorkingDaysInclusive(today, 3);
+    return entryDate < threshold;
+}
+
 function toOptionalNumber(value) {
     if (value == null || value === "") {
         return null;
@@ -235,13 +278,17 @@ export default function TimeTrackingPage({
     userSettings = { currentOrganizationId: null, dailyHoursLimit: 8 }
 }) {
     const today = new Date();
+    const storedSelectedDate = sessionStorage.getItem("dev-productivity:selected-time-tracking-date");
+    const storedSelectedDateValue = parseDateKey(storedSelectedDate);
+    const initialSelectedDateValue = storedSelectedDateValue || today;
+    const initialSelectedDate = formatDateKey(initialSelectedDateValue);
 
     const [entries, setEntries] = useState([]);
     const [clients, setClients] = useState([]);
     const [tasks, setTasks] = useState([]);
-    const [selectedMonth, setSelectedMonth] = useState(today.getMonth());
-    const [selectedYear, setSelectedYear] = useState(today.getFullYear());
-    const [selectedDate, setSelectedDate] = useState(formatDateKey(today));
+    const [selectedMonth, setSelectedMonth] = useState(initialSelectedDateValue.getMonth());
+    const [selectedYear, setSelectedYear] = useState(initialSelectedDateValue.getFullYear());
+    const [selectedDate, setSelectedDate] = useState(initialSelectedDate);
     const [selectedEntryId, setSelectedEntryId] = useState(null);
     const [entryEditorOpen, setEntryEditorOpen] = useState(false);
     const [entryEditorMode, setEntryEditorMode] = useState(null);
@@ -250,6 +297,8 @@ export default function TimeTrackingPage({
     const [validationDialogOpen, setValidationDialogOpen] = useState(false);
     const [validationIssues, setValidationIssues] = useState([]);
     const [apiErrorMessage, setApiErrorMessage] = useState("");
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+    const [pendingDeleteEntryId, setPendingDeleteEntryId] = useState(null);
     const selectedDateRef = useRef(selectedDate);
     const cancelEntryEditRef = useRef(() => {});
 
@@ -307,14 +356,9 @@ export default function TimeTrackingPage({
 
                 setEntries(nextEntries);
 
-                const hasSelectedDate = nextEntries.some(entry => entry.date === selectedDateRef.current);
-                if (!hasSelectedDate) {
-                    const nextSelectedDate = nextEntries[0]?.date ?? formatDateKey(new Date(selectedYear, selectedMonth, 1));
-                    setSelectedDate(nextSelectedDate);
+                const hasSelectedDateEntry = nextEntries.some(entry => entry.date === selectedDateRef.current);
+                if (!hasSelectedDateEntry) {
                     setSelectedEntryId(null);
-                    setEntryEditorOpen(false);
-                    setEntryEditorMode(null);
-                    setDraftEntry(null);
                 }
 
                 setApiErrorMessage("");
@@ -337,6 +381,8 @@ export default function TimeTrackingPage({
     const clearTransientMessages = () => {
         setValidationDialogOpen(false);
         setValidationIssues([]);
+        setDeleteConfirmOpen(false);
+        setPendingDeleteEntryId(null);
     };
 
     const loadEntriesForDate = async (date) => {
@@ -361,6 +407,7 @@ export default function TimeTrackingPage({
 
     const switchToDate = (date, shouldLoadDayEntries = true) => {
         setSelectedDate(date);
+        sessionStorage.setItem("dev-productivity:selected-time-tracking-date", date);
         setSelectedEntryId(null);
         setEntryEditorOpen(false);
         setEntryEditorMode(null);
@@ -549,7 +596,7 @@ export default function TimeTrackingPage({
         });
     };
 
-    const handleDeleteEntry = async (entryId) => {
+    const performDeleteEntry = async (entryId) => {
         if (!entryId) {
             return;
         }
@@ -569,6 +616,33 @@ export default function TimeTrackingPage({
         } catch (error) {
             setApiErrorMessage(getApiErrorMessage(error, "Unable to delete time entry."));
         }
+    };
+
+    const handleDeleteEntry = async (entryId) => {
+        if (!entryId) {
+            return;
+        }
+
+        const entry = entries.find(currentEntry => sameId(currentEntry.id, entryId));
+        if (entry && isEarlierThanThreeWorkingDays(entry.date)) {
+            setPendingDeleteEntryId(entryId);
+            setDeleteConfirmOpen(true);
+            return;
+        }
+
+        await performDeleteEntry(entryId);
+    };
+
+    const handleCancelDeleteEntry = () => {
+        setPendingDeleteEntryId(null);
+        setDeleteConfirmOpen(false);
+    };
+
+    const handleConfirmDeleteEntry = async () => {
+        const entryId = pendingDeleteEntryId;
+        setPendingDeleteEntryId(null);
+        setDeleteConfirmOpen(false);
+        await performDeleteEntry(entryId);
     };
 
     const cancelEntryEdit = () => {
@@ -690,7 +764,8 @@ export default function TimeTrackingPage({
     useEffect(() => {
         if (
             !entryEditorOpen ||
-            validationDialogOpen
+            validationDialogOpen ||
+            deleteConfirmOpen
         ) {
             return undefined;
         }
@@ -706,7 +781,7 @@ export default function TimeTrackingPage({
 
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [entryEditorOpen, validationDialogOpen]);
+    }, [deleteConfirmOpen, entryEditorOpen, validationDialogOpen]);
 
     return (
         <div className="tracking-main tracking-time-tracking-main">
@@ -714,7 +789,6 @@ export default function TimeTrackingPage({
                 <div className="tracking-topbar-main">
                     <div>
                         <h2>Time Tracking</h2>
-                        <p>Worklog overview and monthly productivity summary</p>
                     </div>
                 </div>
             </header>
@@ -836,6 +910,33 @@ export default function TimeTrackingPage({
                         <div className="tracking-modal-actions">
                             <button type="button" className="tracking-modal-button" onClick={() => setValidationDialogOpen(false)}>
                                 OK
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {deleteConfirmOpen && (
+                <div className="tracking-modal-overlay" role="presentation">
+                    <div className="tracking-modal tracking-modal-confirm" role="dialog" aria-modal="true" aria-labelledby="tracking-delete-confirm-title">
+                        <div className="tracking-modal-header">
+                            <h3 id="tracking-delete-confirm-title">Delete worklog entry</h3>
+                        </div>
+                        <div className="tracking-modal-body">
+                            <p className="tracking-modal-text">
+                                This entry is older than 3 working days. Delete selected worklog entry?
+                            </p>
+                        </div>
+                        <div className="tracking-modal-actions">
+                            <button type="button" className="tracking-modal-button" onClick={handleConfirmDeleteEntry}>
+                                Delete
+                            </button>
+                            <button
+                                type="button"
+                                className="tracking-modal-button tracking-modal-button-secondary"
+                                onClick={handleCancelDeleteEntry}
+                            >
+                                Cancel
                             </button>
                         </div>
                     </div>
