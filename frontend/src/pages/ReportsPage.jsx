@@ -206,25 +206,9 @@ export default function ReportsPage({ resetToken = 0 }) {
         </section>
     );
 
-    const renderReportTitle = () => (
-        <section className="tracking-panel organizations-panel reports-panel reports-title-panel">
-            <div className="tracking-panel-header organizations-panel-header">
-                <div>
-                    <h3>{activeReport?.name}</h3>
-                </div>
-            </div>
-        </section>
-    );
-
     const renderReportParameters = () => (
         <section className="tracking-panel organizations-panel reports-panel reports-parameters-panel">
-            <div className="tracking-panel-header organizations-panel-header">
-                <div>
-                    <h3>Report Parameters</h3>
-                </div>
-            </div>
-
-            <div className="tracking-panel-body reports-panel-body">
+            <div className="tracking-panel-header organizations-panel-header reports-parameters-header">
                 <div className="reports-period-bar">
                     <label className="tracking-modal-field reports-period-field">
                         <span>Date From</span>
@@ -284,7 +268,7 @@ export default function ReportsPage({ resetToken = 0 }) {
                     <col className="reports-col-hours" />
                 </colgroup>
                 <thead>
-                    <tr>
+                    <tr className="reports-result-header-row">
                         <th>Client</th>
                         <th>Task</th>
                         <th className="tasks-number-cell">Hours</th>
@@ -299,7 +283,7 @@ export default function ReportsPage({ resetToken = 0 }) {
                         </tr>,
                         ...client.tasks.map(task => (
                             <tr key={`task-${client.clientId}-${task.taskId}`}>
-                                <td></td>
+                                <td>{client.clientName}</td>
                                 <td>{task.taskName}</td>
                                 <td className="tasks-number-cell">{formatHours(task.hours)}</td>
                             </tr>
@@ -327,7 +311,6 @@ export default function ReportsPage({ resetToken = 0 }) {
 
             <div className="tracking-content-grid organizations-content-grid reports-content-stack">
                 {renderReportsList()}
-                {activeReportId ? renderReportTitle() : null}
                 {activeReportId ? renderReportParameters() : null}
                 {renderReportResult()}
             </div>

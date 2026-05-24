@@ -15,8 +15,8 @@ export default function AppNavigationShell({ activePage, onNavigate, onLogout, c
         <div className="app-shell">
             <aside className="app-shell-sidebar">
                 <div className="app-shell-brand">
-                    <div className="app-shell-brand-title">Dev Productivity</div>
-                    <div className="app-shell-brand-subtitle">Enterprise workspace</div>
+                    <div className="app-shell-brand-title">Worklog Manager</div>
+                    <div className="app-shell-brand-subtitle">Time Tracking, Tasks &amp; Reports</div>
                 </div>
 
                 <nav className="app-shell-nav" aria-label="Primary">

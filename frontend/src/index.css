@@ -362,7 +362,7 @@ textarea:focus {
 }
 
 .organizations-main {
-  gap: 14px;
+  gap: 0;
   width: 100%;
   max-width: 100%;
   min-width: 0;
@@ -564,6 +564,7 @@ textarea:focus {
 
 .clients-filter-bar.tasks-filter-header-row > .tasks-filter-heading {
   display: block;
+  width: 100%;
   min-height: 42px;
   padding: 12px 14px;
   border: 1px solid #b9d2ec;
@@ -1186,9 +1187,10 @@ textarea:focus {
   border-radius: 5px;
   background: #f7f9fc;
   color: #344054;
-  font-size: 12px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1;
   padding: 0;
-  font: inherit;
   appearance: none;
   -webkit-appearance: none;
   cursor: pointer;
@@ -1470,6 +1472,26 @@ textarea:focus {
 .tracking-modal-editor .tracking-modal-actions {
   flex: 0 0 auto;
   margin-top: auto;
+}
+
+.tracking-modal-checkbox-field {
+  align-items: flex-start;
+}
+
+.tracking-modal-checkbox-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 2px;
+  color: #344054;
+  font-size: 13px;
+}
+
+.tracking-modal-checkbox-control input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
 }
 
 .tracking-modal-task-editor-body {
@@ -1894,6 +1916,28 @@ textarea:focus {
   gap: 8px;
 }
 
+.reports-parameters-header {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  padding: 12px 18px 14px 20px;
+}
+
+.settings-user-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reports-parameters-header .reports-period-bar {
+  width: 100%;
+}
+
+.reports-parameters-header .tracking-modal-error {
+  margin: 0;
+}
+
 .reports-result-wrap {
   flex: 1;
   min-height: 0;
@@ -1920,9 +1964,22 @@ textarea:focus {
   width: 16%;
 }
 
-.reports-client-row td {
+.reports-result-table thead tr th {
   background: #dcebf9;
+  color: #202c38;
   font-weight: 700;
+  border-top: 1px solid #b9d2ec;
+  border-bottom: 1px solid #b9d2ec;
+  box-shadow: 0 1px 3px rgba(28, 85, 135, 0.12);
+}
+
+.reports-result-header-row th {
+  background: #dcebf9;
+}
+
+.reports-result-table tbody tr.reports-client-row td {
+  background: transparent;
+  font-weight: 700 !important;
   color: #1f2937;
 }
 
@@ -1931,19 +1988,15 @@ textarea:focus {
   white-space: nowrap;
 }
 
-.reports-grand-total-row td {
-  background: #cfe0f4;
-  box-shadow: inset 0 1px 0 var(--app-selection-border);
-  font-weight: 700;
+.reports-result-table tbody tr.reports-grand-total-row td {
+  background: #dcebf9;
+  box-shadow: 0 1px 3px rgba(28, 85, 135, 0.12);
+  font-weight: 700 !important;
 }
 
 .reports-grand-total-row td:last-child {
   text-align: right;
   white-space: nowrap;
-}
-
-.reports-title-panel .tracking-panel-header {
-  background: #dcebf9;
 }
 
 .reports-parameters-panel .tracking-panel-header {

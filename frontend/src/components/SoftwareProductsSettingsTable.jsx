@@ -70,7 +70,9 @@ export default function SoftwareProductsSettingsTable({
     };
 
     const beginEdit = (product, fallbackSelectionId = product.id, isNewProduct = false) => {
-        setSelectedSoftwareProductId(product.id);
+        if (!isNewProduct) {
+            setSelectedSoftwareProductId(product.id);
+        }
         setEditingSoftwareProductId(product.id);
         setDraftProduct({ ...product });
         setEditingOriginalProduct({ ...product });
@@ -89,12 +91,6 @@ export default function SoftwareProductsSettingsTable({
 
     const discardCurrentEdit = (nextSelectedId = null) => {
         const currentEditingId = editingSoftwareProductId;
-
-        if (editingSoftwareProductIsNew) {
-            onSoftwareProductsChange(currentProducts =>
-                currentProducts.filter(product => product.id !== currentEditingId)
-            );
-        }
 
         setSelectedSoftwareProductId(nextSelectedId ?? resolveSelectionAfterDiscard());
         setEditingSoftwareProductId(null);
@@ -127,15 +123,21 @@ export default function SoftwareProductsSettingsTable({
                 ? await createSoftwareProduct(payload)
                 : await updateSoftwareProduct(draftProduct.id, payload);
 
-            onSoftwareProductsChange(currentProducts =>
-                currentProducts.map(product =>
-                    product.id === draftProduct.id
-                        ? savedProduct
-                        : product
-                )
-            );
+            onSoftwareProductsChange(currentProducts => (
+                editingSoftwareProductIsNew
+                    ? [...currentProducts, savedProduct]
+                    : currentProducts.map(product =>
+                        product.id === draftProduct.id
+                            ? savedProduct
+                            : product
+                    )
+            ));
 
-            setSelectedSoftwareProductId(savedProduct.id ?? nextSelectedId);
+            setSelectedSoftwareProductId(
+                nextSelectedId != null && nextSelectedId !== selectedSoftwareProductId
+                    ? nextSelectedId
+                    : (savedProduct.id ?? nextSelectedId)
+            );
             setEditingSoftwareProductId(null);
             setDraftProduct(null);
             setEditingOriginalProduct(null);
@@ -160,8 +162,6 @@ export default function SoftwareProductsSettingsTable({
     const handleAddProduct = () => {
         const nextProduct = createProduct(nextId);
 
-        onSoftwareProductsChange(currentProducts => [...currentProducts, nextProduct]);
-        setSelectedSoftwareProductId(nextProduct.id);
         setEditingSoftwareProductId(nextProduct.id);
         setDraftProduct({ ...nextProduct });
         setEditingOriginalProduct(null);
@@ -172,11 +172,6 @@ export default function SoftwareProductsSettingsTable({
     };
 
     const handleEditOrSave = async () => {
-        if (editingSoftwareProductId != null) {
-            await commitDraft();
-            return;
-        }
-
         if (selectedSoftwareProduct) {
             beginEdit(selectedSoftwareProduct);
         }
@@ -319,7 +314,6 @@ export default function SoftwareProductsSettingsTable({
 
     const renderRow = (product) => {
         const isSelected = product.id === selectedSoftwareProductId;
-        const isEditingRow = product.id === editingSoftwareProductId;
 
         return (
             <tr
@@ -329,30 +323,10 @@ export default function SoftwareProductsSettingsTable({
                 onDoubleClick={() => handleRowEditRequest(product)}
             >
                 <td>
-                    {isEditingRow ? (
-                        <input
-                            className="app-master-data-input organizations-input"
-                            type="text"
-                            value={draftProduct?.shortName ?? ""}
-                            onChange={event => handleDraftChange("shortName", event.target.value)}
-                            onClick={event => event.stopPropagation()}
-                        />
-                    ) : (
-                        <span className="organizations-readonly-cell">{product.shortName}</span>
-                    )}
+                    <span className="organizations-readonly-cell">{product.shortName}</span>
                 </td>
                 <td>
-                    {isEditingRow ? (
-                        <input
-                            className="app-master-data-input organizations-input"
-                            type="text"
-                            value={draftProduct?.fullName ?? ""}
-                            onChange={event => handleDraftChange("fullName", event.target.value)}
-                            onClick={event => event.stopPropagation()}
-                        />
-                    ) : (
-                        <span className="organizations-readonly-cell">{product.fullName}</span>
-                    )}
+                    <span className="organizations-readonly-cell">{product.fullName}</span>
                 </td>
             </tr>
         );
@@ -367,40 +341,27 @@ export default function SoftwareProductsSettingsTable({
                 </div>
 
                 <div className="clients-toolbar">
-                    {editingSoftwareProductId != null ? (
-                        <>
-                            <button type="button" className="tracking-save-button" onClick={handleEditOrSave} disabled={saving}>
-                                Save
-                            </button>
-                            <button type="button" className="tracking-save-button" onClick={handleCancel} disabled={saving}>
-                                Cancel
-                            </button>
-                        </>
-                    ) : (
-                        <>
-                            <div className="organizations-toolbar-actions">
-                                <button type="button" className="tracking-save-button" onClick={handleAddProduct} disabled={saving}>
-                                    Add
-                                </button>
-                                <button
-                                    type="button"
-                                    className="tracking-save-button"
-                                    onClick={handleEditOrSave}
-                                    disabled={!selectedSoftwareProduct || saving}
-                                >
-                                    Edit
-                                </button>
-                            </div>
-                            <button
-                                type="button"
-                                className="organizations-delete-button organizations-delete-button-separated"
-                                onClick={handleDeleteProduct}
-                                disabled={!selectedSoftwareProduct || saving}
-                            >
-                                Delete
-                            </button>
-                        </>
-                    )}
+                    <div className="organizations-toolbar-actions">
+                        <button type="button" className="tracking-save-button" onClick={handleAddProduct} disabled={saving || editingSoftwareProductId != null}>
+                            Add
+                        </button>
+                        <button
+                            type="button"
+                            className="tracking-save-button"
+                            onClick={handleEditOrSave}
+                            disabled={!selectedSoftwareProduct || saving || editingSoftwareProductId != null}
+                        >
+                            Edit
+                        </button>
+                    </div>
+                    <button
+                        type="button"
+                        className="organizations-delete-button organizations-delete-button-separated"
+                        onClick={handleDeleteProduct}
+                        disabled={!selectedSoftwareProduct || saving || editingSoftwareProductId != null}
+                    >
+                        Delete
+                    </button>
                 </div>
             </div>
 
@@ -419,6 +380,52 @@ export default function SoftwareProductsSettingsTable({
                     <tbody>{softwareProducts.map(renderRow)}</tbody>
                 </table>
             </div>
+
+            {editingSoftwareProductId != null && draftProduct && (
+                <div className="tracking-modal-overlay" role="presentation">
+                    <div
+                        className="tracking-modal tracking-modal-confirm tracking-modal-editor tracking-modal-software-product-editor"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="software-products-editor-title"
+                    >
+                        <div className="tracking-modal-header">
+                            <h3 id="software-products-editor-title">
+                                {editingSoftwareProductIsNew ? "Add Software Product" : "Edit Software Product"}
+                            </h3>
+                        </div>
+                        <div className="tracking-modal-body">
+                            <div className="tracking-modal-fields">
+                                <label className="tracking-modal-field">
+                                    <span>Short Name</span>
+                                    <input
+                                        type="text"
+                                        value={draftProduct.shortName ?? ""}
+                                        onChange={event => handleDraftChange("shortName", event.target.value)}
+                                    />
+                                </label>
+
+                                <label className="tracking-modal-field">
+                                    <span>Full Name</span>
+                                    <input
+                                        type="text"
+                                        value={draftProduct.fullName ?? ""}
+                                        onChange={event => handleDraftChange("fullName", event.target.value)}
+                                    />
+                                </label>
+                            </div>
+                        </div>
+                        <div className="tracking-modal-actions">
+                            <button type="button" className="tracking-modal-button" onClick={() => commitDraft()}>
+                                Save
+                            </button>
+                            <button type="button" className="tracking-modal-button tracking-modal-button-secondary" onClick={handleCancel}>
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {validationDialogOpen && (
                 <div className="tracking-modal-overlay" role="presentation">

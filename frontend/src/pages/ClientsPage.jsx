@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     createClient as apiCreateClient,
     deleteClient as apiDeleteClient,
@@ -360,32 +360,38 @@ export default function ClientsPage({
                     </div>
                 </div>
             </header>
-
-            <div className="clients-filter-bar tasks-filter-header-row">
-                <label className="tasks-filter-heading" htmlFor="clients-organization-select">
-                    Organization
-                </label>
-                <div className="selector-clear-control">
-                    <select
-                        id="clients-organization-select"
-                        className="clients-filter-select tasks-filter-select"
-                        value={String(selectedOrganizationId ?? "")}
-                        onChange={event => handleOrganizationChange(event.target.value)}
-                    >
-                        <option value=""></option>
-                        {organizations.map(organization => (
-                            <option key={organization.id} value={String(organization.id)}>
-                                {organization.shortName}
-                            </option>
-                        ))}
-                    </select>
-                    {selectedOrganizationId != null && (
-                        <button type="button" className="selector-clear-button" onClick={handleClearOrganizationFilter} aria-label="Clear organization filter">
-                            ×
-                        </button>
-                    )}
+            <section className="tasks-filter-bar clients-filter-shell">
+                <div className="tasks-filter-header-row">
+                    <label className="tasks-filter-heading" htmlFor="clients-organization-select">
+                        Organization
+                    </label>
                 </div>
-            </div>
+
+                <div className="tasks-filter-values-row">
+                    <div className="tasks-filter-field clients-filter-field">
+                        <div className="selector-clear-control">
+                            <select
+                                id="clients-organization-select"
+                                className="clients-filter-select tasks-filter-select"
+                                value={String(selectedOrganizationId ?? "")}
+                                onChange={event => handleOrganizationChange(event.target.value)}
+                            >
+                                <option value=""></option>
+                                {organizations.map(organization => (
+                                    <option key={organization.id} value={String(organization.id)}>
+                                        {organization.shortName}
+                                    </option>
+                                ))}
+                            </select>
+                            {selectedOrganizationId != null && (
+                                <button type="button" className="selector-clear-button" onClick={handleClearOrganizationFilter} aria-label="Clear organization filter">
+                                    ×
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </section>
 
             <div className="tracking-content-grid organizations-content-grid">
                 <section className="tracking-panel organizations-panel">
@@ -472,7 +478,7 @@ export default function ClientsPage({
                                         </select>
                                         {draftClient.organizationId != null && (
                                             <button type="button" className="selector-clear-button" onClick={() => handleDraftOrganizationChange("")} aria-label="Clear organization">
-                                                ×
+                                                Г—
                                             </button>
                                         )}
                                     </div>
@@ -580,3 +586,4 @@ export default function ClientsPage({
         </div>
     );
 }
+

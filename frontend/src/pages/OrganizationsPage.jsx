@@ -28,12 +28,13 @@ function validateOrganization(organization) {
     return issues;
 }
 
-export default function OrganizationsPage({ currentOrganizationId = null }) {
+export default function OrganizationsPage({ currentOrganizationId = null, onCurrentOrganizationChange = async () => {} }) {
     const [organizations, setOrganizations] = useState([]);
     const [selectedOrganizationId, setSelectedOrganizationId] = useState(null);
     const [editorOpen, setEditorOpen] = useState(false);
     const [editorMode, setEditorMode] = useState(null);
     const [draftOrganization, setDraftOrganization] = useState(null);
+    const [draftOrganizationIsCurrent, setDraftOrganizationIsCurrent] = useState(false);
     const [validationDialogOpen, setValidationDialogOpen] = useState(false);
     const [validationIssues, setValidationIssues] = useState([]);
     const [warningDialogOpen, setWarningDialogOpen] = useState(false);
@@ -48,6 +49,15 @@ export default function OrganizationsPage({ currentOrganizationId = null }) {
     );
 
     const selectedOrganization = organizations.find(organization => organization.id === selectedOrganizationId) ?? null;
+    const orderedOrganizations = useMemo(() => {
+        if (currentOrganizationId == null) {
+            return organizations;
+        }
+
+        const currentOrganizations = organizations.filter(organization => String(organization.id) === String(currentOrganizationId));
+        const otherOrganizations = organizations.filter(organization => String(organization.id) !== String(currentOrganizationId));
+        return [...currentOrganizations, ...otherOrganizations];
+    }, [currentOrganizationId, organizations]);
 
     const closeTransientDialogs = useCallback(() => {
         setValidationDialogOpen(false);
@@ -62,6 +72,7 @@ export default function OrganizationsPage({ currentOrganizationId = null }) {
         setEditorOpen(false);
         setEditorMode(null);
         setDraftOrganization(null);
+        setDraftOrganizationIsCurrent(false);
         closeTransientDialogs();
     }, [closeTransientDialogs]);
 
@@ -70,6 +81,7 @@ export default function OrganizationsPage({ currentOrganizationId = null }) {
         setEditorOpen(true);
         setEditorMode("edit");
         setDraftOrganization({ ...organization });
+        setDraftOrganizationIsCurrent(String(organization.id) === String(currentOrganizationId));
         closeTransientDialogs();
     };
 
@@ -77,6 +89,7 @@ export default function OrganizationsPage({ currentOrganizationId = null }) {
         setEditorOpen(true);
         setEditorMode("add");
         setDraftOrganization(createOrganizationDraft());
+        setDraftOrganizationIsCurrent(false);
         closeTransientDialogs();
     };
 
@@ -136,6 +149,9 @@ export default function OrganizationsPage({ currentOrganizationId = null }) {
 
             setOrganizations(nextOrganizations);
             setSelectedOrganizationId(nextOrganizations[0]?.id ?? null);
+            if (String(currentOrganizationId) === String(organizationId)) {
+                await onCurrentOrganizationChange(nextOrganizations[0]?.id ?? null);
+            }
             closeTransientDialogs();
         } catch (error) {
             const message =
@@ -186,6 +202,11 @@ export default function OrganizationsPage({ currentOrganizationId = null }) {
 
             setOrganizations(nextOrganizations);
             setSelectedOrganizationId(normalizedOrganization.id);
+            if (draftOrganizationIsCurrent) {
+                await onCurrentOrganizationChange(normalizedOrganization.id);
+            } else if (String(currentOrganizationId) === String(normalizedOrganization.id)) {
+                await onCurrentOrganizationChange(null);
+            }
             closeEditor();
         } catch (error) {
             const message =
@@ -345,7 +366,7 @@ export default function OrganizationsPage({ currentOrganizationId = null }) {
                                     <th>Full Name</th>
                                 </tr>
                             </thead>
-                            <tbody>{organizations.map(renderRow)}</tbody>
+            <tbody>{orderedOrganizations.map(renderRow)}</tbody>
                         </table>
                     </div>
                 </section>
@@ -366,6 +387,18 @@ export default function OrganizationsPage({ currentOrganizationId = null }) {
                         </div>
                         <div className="tracking-modal-body">
                             <div className="tracking-modal-fields">
+                                <label className="tracking-modal-field tracking-modal-checkbox-field">
+                                    <span>Current Organization</span>
+                                    <div className="tracking-modal-checkbox-control">
+                                        <input
+                                            type="checkbox"
+                                            checked={draftOrganizationIsCurrent}
+                                            onChange={event => setDraftOrganizationIsCurrent(event.target.checked)}
+                                        />
+                                        <span>Mark this organization as current</span>
+                                    </div>
+                                </label>
+
                                 <label className="tracking-modal-field">
                                     <span>Short Name</span>
                                     <input

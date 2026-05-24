@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import SoftwareProductsSettingsTable from "../components/SoftwareProductsSettingsTable";
 import {
+    getStoredReportsSaveDirectoryHandle,
     clearStoredReportsSaveDirectoryHandle,
     setStoredReportsSaveDirectoryHandle
 } from "../utils/reportExportDirectoryStorage";
@@ -30,12 +31,34 @@ export default function SettingsPage({
     const [settingsMessage, setSettingsMessage] = useState("");
     const [settingsSaveError, setSettingsSaveError] = useState("");
     const [settingsSaving, setSettingsSaving] = useState(false);
+    const savedReportsSaveDirectoryHandleRef = useRef(null);
+    const draftReportsSaveDirectoryHandleRef = useRef(null);
 
     useEffect(() => {
         setSettingsDraftLimit(String(userSettings.dailyHoursLimit ?? 8));
         setSettingsDraftOrganizationId(String(userSettings.currentOrganizationId ?? ""));
         setSettingsDraftReportsSaveDirectory(userSettings.reportsSaveDirectory ?? "");
     }, [userSettings.currentOrganizationId, userSettings.dailyHoursLimit, userSettings.reportsSaveDirectory]);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadReportsSaveDirectoryHandle = async () => {
+            const directoryHandle = await getStoredReportsSaveDirectoryHandle();
+            if (!isMounted) {
+                return;
+            }
+
+            savedReportsSaveDirectoryHandleRef.current = directoryHandle;
+            draftReportsSaveDirectoryHandleRef.current = directoryHandle;
+        };
+
+        void loadReportsSaveDirectoryHandle();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     const handleSaveUserSettings = async () => {
         const parsedLimit = Number(settingsDraftLimit);
@@ -55,6 +78,7 @@ export default function SettingsPage({
                 dailyHoursLimit: parsedLimit,
                 reportsSaveDirectory: settingsDraftReportsSaveDirectory
             });
+            savedReportsSaveDirectoryHandleRef.current = draftReportsSaveDirectoryHandleRef.current;
             setSettingsMessage("User settings saved.");
         } catch (error) {
             setSettingsSaveError(getApiErrorMessage(error, "Unable to save user settings."));
@@ -86,6 +110,7 @@ export default function SettingsPage({
             });
 
             setSettingsDraftReportsSaveDirectory(directoryHandle.name ?? "");
+            draftReportsSaveDirectoryHandleRef.current = directoryHandle;
             await setStoredReportsSaveDirectoryHandle(directoryHandle);
         } catch (error) {
             if (error?.name !== "AbortError") {
@@ -96,7 +121,25 @@ export default function SettingsPage({
 
     const handleClearReportsSaveDirectory = async () => {
         setSettingsDraftReportsSaveDirectory("");
+        draftReportsSaveDirectoryHandleRef.current = null;
         await clearStoredReportsSaveDirectoryHandle();
+    };
+
+    const handleCancelUserSettings = async () => {
+        setSettingsMessage("");
+        setSettingsSaveError("");
+        setSettingsDraftLimit(String(userSettings.dailyHoursLimit ?? 8));
+        setSettingsDraftOrganizationId(String(userSettings.currentOrganizationId ?? ""));
+        setSettingsDraftReportsSaveDirectory(userSettings.reportsSaveDirectory ?? "");
+
+        const savedDirectoryHandle = savedReportsSaveDirectoryHandleRef.current;
+        draftReportsSaveDirectoryHandleRef.current = savedDirectoryHandle;
+
+        if (savedDirectoryHandle) {
+            await setStoredReportsSaveDirectoryHandle(savedDirectoryHandle);
+        } else {
+            await clearStoredReportsSaveDirectoryHandle();
+        }
     };
 
     return (
@@ -114,22 +157,31 @@ export default function SettingsPage({
                     <div className="tracking-panel-header organizations-panel-header">
                         <div>
                             <h3>User Settings</h3>
-                            <p className="organizations-subtitle">Current user context</p>
                         </div>
-                        <button
-                            type="button"
-                            className="tracking-save-button"
-                            onClick={handleSaveUserSettings}
-                            disabled={userSettingsLoading || settingsSaving}
-                        >
-                            Save
-                        </button>
+                        <div className="settings-user-actions">
+                            <button
+                                type="button"
+                                className="tracking-modal-button tracking-modal-button-secondary"
+                                onClick={handleCancelUserSettings}
+                                disabled={userSettingsLoading || settingsSaving}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                className="tracking-save-button"
+                                onClick={handleSaveUserSettings}
+                                disabled={userSettingsLoading || settingsSaving}
+                            >
+                                Save
+                            </button>
+                        </div>
                     </div>
 
                     <div className="tracking-panel-body">
                         <div className="settings-form-grid">
                             <label className="tracking-modal-field">
-                                <span>Daily hours limit</span>
+                                <span>Daily Hours Limit</span>
                                 <input
                                     type="number"
                                     min="0"
@@ -217,3 +269,4 @@ export default function SettingsPage({
         </div>
     );
 }
+

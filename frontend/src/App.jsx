@@ -203,7 +203,18 @@ function App() {
                     />
                 );
             case "organizations":
-                return <OrganizationsPage currentOrganizationId={currentOrganizationId} />;
+                return (
+                    <OrganizationsPage
+                        currentOrganizationId={currentOrganizationId}
+                        onCurrentOrganizationChange={async nextCurrentOrganizationId => {
+                            await handleUserSettingsChange({
+                                currentOrganizationId: nextCurrentOrganizationId,
+                                dailyHoursLimit: userSettings.dailyHoursLimit,
+                                reportsSaveDirectory: userSettings.reportsSaveDirectory
+                            });
+                        }}
+                    />
+                );
             case "settings":
                 return (
                     <SettingsPage
