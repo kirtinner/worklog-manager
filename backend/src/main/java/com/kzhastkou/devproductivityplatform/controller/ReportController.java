@@ -1,8 +1,6 @@
 package com.kzhastkou.devproductivityplatform.controller;
 
 import com.kzhastkou.devproductivityplatform.dto.WorkEffortReportResponse;
-import com.kzhastkou.devproductivityplatform.entity.Developer;
-import com.kzhastkou.devproductivityplatform.repository.DeveloperRepository;
 import com.kzhastkou.devproductivityplatform.service.ReportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -20,7 +18,6 @@ import java.time.LocalDate;
 public class ReportController {
 
     private final ReportService reportService;
-    private final DeveloperRepository developerRepository;
 
     @GetMapping("/work-effort")
     public WorkEffortReportResponse getWorkEffortReport(@RequestParam LocalDate from,
@@ -36,8 +33,6 @@ public class ReportController {
             return userId;
         }
 
-        return developerRepository.findFirstByOrderByIdAsc()
-                .map(Developer::getId)
-                .orElseThrow(() -> new IllegalStateException("No developer available for reports"));
+        throw new IllegalStateException("Unable to resolve current user");
     }
 }

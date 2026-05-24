@@ -28,9 +28,15 @@ public interface TimeEntryRepository extends JpaRepository<TimeEntry, Long> {
 
     boolean existsByOrganizationId(Long organizationId);
 
+    boolean existsByDeveloperIdAndOrganizationId(Long developerId, Long organizationId);
+
     boolean existsByTaskClientId(Long clientId);
 
+    boolean existsByDeveloperIdAndTaskClientId(Long developerId, Long clientId);
+
     boolean existsByTaskProjectId(Long projectId);
+
+    boolean existsByDeveloperIdAndTaskProjectId(Long developerId, Long projectId);
 
     boolean existsByTaskId(Long taskId);
 

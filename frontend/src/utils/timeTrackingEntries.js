@@ -5,6 +5,8 @@ export function createLocalWorklogEntry(date, nextId, organizationId = null) {
         organizationName: "",
         clientId: null,
         clientName: "New Client",
+        projectId: null,
+        projectName: "",
         taskId: null,
         taskName: "",
         date,

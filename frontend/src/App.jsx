@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import AppNavigationShell from "./components/AppNavigationShell";
 import ClientsPage from "./pages/ClientsPage";
 import LoginPage from "./pages/LoginPage";
+import AdministrationPage from "./pages/AdministrationPage";
 import OrganizationsPage from "./pages/OrganizationsPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import ReportsPage from "./pages/ReportsPage";
@@ -34,7 +36,6 @@ function getApiErrorMessage(error, fallbackMessage) {
     return error?.message ? `${fallbackMessage} (${error.message})` : fallbackMessage;
 }
 
-const ACTIVE_PAGE_STORAGE_KEY = "dev-productivity:active-page";
 const VALID_PAGES = new Set([
     "time-tracking",
     "reports",
@@ -42,17 +43,27 @@ const VALID_PAGES = new Set([
     "clients",
     "projects",
     "tasks",
-    "settings"
+    "settings",
+    "administration"
 ]);
 
-function getInitialPage() {
-    const storedPage = sessionStorage.getItem(ACTIVE_PAGE_STORAGE_KEY);
-    return VALID_PAGES.has(storedPage) ? storedPage : "time-tracking";
+function pageToPath(page) {
+    if (!VALID_PAGES.has(page)) {
+        return "/time-tracking";
+    }
+
+    return `/${page}`;
+}
+
+function pathToPage(pathname) {
+    const normalizedPath = pathname.replace(/^\/+/, "");
+    return VALID_PAGES.has(normalizedPath) ? normalizedPath : "time-tracking";
 }
 
 function App() {
+    const location = useLocation();
+    const navigate = useNavigate();
     const [isAuth, setIsAuth] = useState(!!localStorage.getItem("token"));
-    const [page, setPage] = useState(getInitialPage);
     const [organizations, setOrganizations] = useState([]);
     const [softwareProducts, setSoftwareProducts] = useState([]);
     const [userSettings, setUserSettings] = useState(DEFAULT_USER_SETTINGS);
@@ -62,6 +73,7 @@ function App() {
     const [softwareProductsError, setSoftwareProductsError] = useState("");
     const [reportsResetToken, setReportsResetToken] = useState(0);
 
+    const page = pathToPage(location.pathname);
     const currentOrganizationId = userSettings.currentOrganizationId;
 
     useEffect(() => {
@@ -147,18 +159,16 @@ function App() {
             return;
         }
 
-        sessionStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, nextPage);
         if (nextPage === "reports") {
             setReportsResetToken(token => token + 1);
         }
-        setPage(nextPage);
+        navigate(pageToPath(nextPage));
     };
 
     const logout = () => {
         localStorage.removeItem("token");
         setIsAuth(false);
-        sessionStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, "time-tracking");
-        setPage("time-tracking");
+        navigate("/time-tracking", { replace: true });
         setOrganizations([]);
         setSoftwareProducts([]);
         setUserSettings(DEFAULT_USER_SETTINGS);
@@ -236,6 +246,8 @@ function App() {
                         onSoftwareProductsChange={handleSoftwareProductsChange}
                     />
                 );
+            case "administration":
+                return <AdministrationPage />;
             default:
                 return (
                     <TimeTrackingPage
@@ -260,13 +272,27 @@ function App() {
                 onNavigate={isAuth ? navigateToPage : () => {}}
                 onLogout={isAuth ? logout : () => {}}
             >
-                {isAuth ? renderPage() : <div className="login-empty-workspace" aria-hidden="true" />}
+                {isAuth ? (
+                    <Routes>
+                        <Route path="/" element={<Navigate to="/time-tracking" replace />} />
+                        <Route path="/time-tracking" element={renderPage()} />
+                        <Route path="/reports" element={renderPage()} />
+                        <Route path="/organizations" element={renderPage()} />
+                        <Route path="/clients" element={renderPage()} />
+                        <Route path="/projects" element={renderPage()} />
+                        <Route path="/tasks" element={renderPage()} />
+                        <Route path="/settings" element={renderPage()} />
+                        <Route path="/administration" element={renderPage()} />
+                        <Route path="*" element={<Navigate to="/time-tracking" replace />} />
+                    </Routes>
+                ) : (
+                    <div className="login-empty-workspace" aria-hidden="true" />
+                )}
             </AppNavigationShell>
             {!isAuth ? (
                 <LoginPage
                     onLogin={() => {
                         setIsAuth(true);
-                        navigateToPage(getInitialPage());
                     }}
                 />
             ) : null}

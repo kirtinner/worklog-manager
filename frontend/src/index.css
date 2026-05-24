@@ -236,6 +236,10 @@ textarea:focus {
   gap: 8px;
 }
 
+.app-shell-footer-gap {
+  height: 12px;
+}
+
 .app-shell-footer-separator {
   width: 100%;
   height: 1px;
@@ -807,6 +811,77 @@ textarea:focus {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.administration-page-stack {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto;
+  gap: 14px;
+}
+
+.administration-import-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.administration-file-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.administration-file-input {
+  display: none;
+}
+
+.administration-selected-file {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  color: #344054;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.administration-selected-file-label {
+  font-weight: 600;
+}
+
+.administration-selected-file-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.administration-import-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.administration-status-banner {
+  margin-bottom: 0;
+}
+
+.administration-info {
+  display: grid;
+  gap: 8px;
+}
+
+.administration-info-text {
+  margin: 0;
+}
+
+.administration-info-list {
+  margin: 0;
+  padding-left: 18px;
+  color: #344054;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .settings-section-actions {
@@ -1474,6 +1549,11 @@ textarea:focus {
   margin-top: auto;
 }
 
+.tracking-modal-project-editor .tracking-modal-fields {
+  display: grid;
+  gap: 10px;
+}
+
 .tracking-modal-checkbox-field {
   align-items: flex-start;
 }
@@ -1836,6 +1916,10 @@ textarea:focus {
 }
 
 .tasks-col-completed {
+  width: 6%;
+}
+
+.projects-col-completed {
   width: 6%;
 }
 

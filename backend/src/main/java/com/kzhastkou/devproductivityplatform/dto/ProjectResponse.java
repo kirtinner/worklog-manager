@@ -15,4 +15,5 @@ public class ProjectResponse {
     private String shortName;
     private String fullName;
     private String description;
+    private Boolean completed;
 }

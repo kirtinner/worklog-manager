@@ -41,6 +41,18 @@ function mapClient(client) {
     };
 }
 
+function mapProject(project) {
+    return {
+        id: project.id,
+        organizationId: project.organizationId ?? project.organization?.id ?? null,
+        clientId: project.clientId ?? project.client?.id ?? null,
+        shortName: project.shortName ?? "",
+        fullName: project.fullName ?? "",
+        description: project.description ?? "",
+        completed: Boolean(project.completed)
+    };
+}
+
 let tasksRequestPromise = null;
 
 async function loadTasksResponse() {
@@ -106,6 +118,11 @@ export async function deleteTimeEntry(id) {
 export async function getClients() {
     const response = await api.get("/clients");
     return response.data.map(mapClient);
+}
+
+export async function getProjects() {
+    const response = await api.get("/projects");
+    return response.data.map(mapProject);
 }
 
 export async function getTasks() {

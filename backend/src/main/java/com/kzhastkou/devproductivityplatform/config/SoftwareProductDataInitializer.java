@@ -1,6 +1,7 @@
 package com.kzhastkou.devproductivityplatform.config;
 
 import com.kzhastkou.devproductivityplatform.entity.SoftwareProduct;
+import com.kzhastkou.devproductivityplatform.repository.DeveloperRepository;
 import com.kzhastkou.devproductivityplatform.repository.SoftwareProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.ApplicationArguments;
@@ -15,6 +16,7 @@ import java.util.List;
 public class SoftwareProductDataInitializer implements ApplicationRunner {
 
     private final SoftwareProductRepository softwareProductRepository;
+    private final DeveloperRepository developerRepository;
 
     @Override
     @Transactional
@@ -23,20 +25,29 @@ public class SoftwareProductDataInitializer implements ApplicationRunner {
             return;
         }
 
+        var developer = developerRepository.findFirstByOrderByIdAsc().orElse(null);
+        if (developer == null) {
+            return;
+        }
+
         softwareProductRepository.saveAll(List.of(
                 SoftwareProduct.builder()
+                        .developer(developer)
                         .shortName("ERP")
                         .fullName("Enterprise Resource Planning")
                         .build(),
                 SoftwareProduct.builder()
+                        .developer(developer)
                         .shortName("CRM")
                         .fullName("Customer Relationship Management")
                         .build(),
                 SoftwareProduct.builder()
+                        .developer(developer)
                         .shortName("FIN")
                         .fullName("Financial Operations Suite")
                         .build(),
                 SoftwareProduct.builder()
+                        .developer(developer)
                         .shortName("HR")
                         .fullName("Human Resources Platform")
                         .build()

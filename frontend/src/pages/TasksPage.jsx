@@ -88,6 +88,15 @@ function resolveClientLabel(clients, clientId) {
     return clients.find(client => sameId(client.id, clientId))?.shortName ?? "";
 }
 
+function resolveOrganizationLabel(organizations, organizationId) {
+    return organizations.find(organization => sameId(organization.id, organizationId))?.shortName ?? "";
+}
+
+function resolveProjectLabel(projects, projectId) {
+    const project = projects.find(currentProject => sameId(currentProject.id, projectId));
+    return project?.shortName ?? project?.fullName ?? "";
+}
+
 function shouldHighlightActualHours(actualHours, estimatedHours) {
     const actual = Number(actualHours);
     const estimated = Number(estimatedHours);
@@ -105,6 +114,55 @@ function shouldHighlightActualHours(actualHours, estimatedHours) {
 
 function sameId(left, right) {
     return left != null && right != null && String(left) === String(right);
+}
+
+function getVisibleTasksForContext(sourceTasks, organizationId, clientId, projectId, showIncompleteOnly) {
+    let visibleTasks = sourceTasks;
+
+    if (organizationId != null) {
+        visibleTasks = visibleTasks.filter(task => sameId(task.organizationId, organizationId));
+    }
+
+    if (clientId != null) {
+        visibleTasks = visibleTasks.filter(task => sameId(task.clientId, clientId));
+    }
+
+    if (projectId != null) {
+        visibleTasks = visibleTasks.filter(task => sameId(task.projectId, projectId));
+    }
+
+    if (showIncompleteOnly) {
+        visibleTasks = visibleTasks.filter(task => !task.completed);
+    }
+
+    return visibleTasks
+        .slice()
+        .sort((left, right) => {
+            const leftDate = left.created_at ?? "";
+            const rightDate = right.created_at ?? "";
+
+            if (leftDate !== rightDate) {
+                return leftDate.localeCompare(rightDate);
+            }
+
+            return String(left.id ?? "").localeCompare(String(right.id ?? ""));
+        });
+}
+
+function resolveTaskSelection(sourceTasks, organizationId, clientId, projectId, showIncompleteOnly, currentTaskId = null) {
+    const visibleTasks = getVisibleTasksForContext(
+        sourceTasks,
+        organizationId,
+        clientId,
+        projectId,
+        showIncompleteOnly
+    );
+
+    if (currentTaskId != null && visibleTasks.some(task => sameId(task.id, currentTaskId))) {
+        return currentTaskId;
+    }
+
+    return visibleTasks[0]?.id ?? null;
 }
 
 function readStoredNumber(key) {
@@ -176,19 +234,19 @@ function TaskEditorModal({
                             />
                         </label>
 
-                        <label className="tracking-modal-field tasks-editor-field tasks-editor-field-organization">
-                            <span>Organization</span>
-                            <select
-                                value={String(draftTask.organizationId ?? "")}
-                                onChange={event => onOrganizationChange(event.target.value)}
-                            >
-                                <option value=""></option>
-                                {organizations.map(organization => (
-                                    <option key={organization.id} value={String(organization.id)}>
-                                        {organization.shortName}
-                                    </option>
-                                ))}
-                            </select>
+                                <label className="tracking-modal-field tasks-editor-field tasks-editor-field-organization">
+                                    <span>Organization</span>
+                                    <select
+                                        value={String(draftTask.organizationId ?? "")}
+                                        onChange={event => onOrganizationChange(event.target.value)}
+                                    >
+                                        <option value=""></option>
+                                        {organizations.map(organization => (
+                                            <option key={organization.id} value={String(organization.id)}>
+                                                {organization.shortName}
+                                            </option>
+                                        ))}
+                                    </select>
                         </label>
 
                         <label className="tracking-modal-field tasks-editor-field tasks-editor-field-client">
@@ -427,23 +485,13 @@ export default function TasksPage({
     const handleCancelRef = useRef(() => {});
 
     const filteredTasks = useMemo(
-        () => tasks
-            .filter(task =>
-                (selectedOrganizationId == null || sameId(task.organizationId, selectedOrganizationId))
-                && (selectedClientId == null || sameId(task.clientId, selectedClientId))
-                && (selectedProjectId == null || sameId(task.projectId, selectedProjectId))
-                && (!showIncompleteOnly || !task.completed)
-            )
-            .sort((left, right) => {
-                const leftDate = left.created_at ?? "";
-                const rightDate = right.created_at ?? "";
-
-                if (leftDate !== rightDate) {
-                    return leftDate.localeCompare(rightDate);
-                }
-
-                return String(left.id ?? "").localeCompare(String(right.id ?? ""));
-            }),
+        () => getVisibleTasksForContext(
+            tasks,
+            selectedOrganizationId,
+            selectedClientId,
+            selectedProjectId,
+            showIncompleteOnly
+        ),
         [tasks, selectedClientId, selectedOrganizationId, selectedProjectId, showIncompleteOnly]
     );
 
@@ -472,23 +520,33 @@ export default function TasksPage({
                 const storedOrganizationId = readStoredNumber("dev-productivity:tasks:selected-organization-id");
                 const storedClientId = readStoredNumber("dev-productivity:tasks:selected-client-id");
                 const storedProjectId = readStoredNumber("dev-productivity:tasks:selected-project-id");
-                const initialOrganizationId = storedOrganizationId ?? currentOrganizationId ?? organizations[0]?.id ?? nextClients[0]?.organizationId ?? null;
-                const initialClients = nextClients.filter(client => sameId(client.organizationId, initialOrganizationId));
+                const initialOrganizationId =
+                    storedOrganizationId != null && organizations.some(organization => organization.id === storedOrganizationId)
+                        ? storedOrganizationId
+                        : currentOrganizationId != null && organizations.some(organization => organization.id === currentOrganizationId)
+                            ? currentOrganizationId
+                            : organizations[0]?.id ?? null;
+                const initialClients = initialOrganizationId == null
+                    ? []
+                    : nextClients.filter(client => sameId(client.organizationId, initialOrganizationId));
                 const initialClientId = storedClientId != null && initialClients.some(client => sameId(client.id, storedClientId))
                     ? storedClientId
                     : initialClients[0]?.id ?? null;
-                const initialProjects = nextProjects.filter(project =>
-                    sameId(project.organizationId, initialOrganizationId)
-                    && sameId(project.clientId, initialClientId)
+                const initialProjectId = initialOrganizationId == null || initialClientId == null
+                    ? null
+                    : resolveProjectSelection(
+                        initialOrganizationId,
+                        initialClientId,
+                        storedProjectId,
+                        nextProjects
+                    );
+                const initialTaskId = resolveTaskSelection(
+                    nextTasks,
+                    initialOrganizationId,
+                    initialClientId,
+                    initialProjectId,
+                    showIncompleteOnly
                 );
-                const initialProjectId = storedProjectId != null && initialProjects.some(project => sameId(project.id, storedProjectId))
-                    ? storedProjectId
-                    : initialProjects[0]?.id ?? null;
-                const initialTaskId = nextTasks.find(task =>
-                    sameId(task.organizationId, initialOrganizationId)
-                    && sameId(task.clientId, initialClientId)
-                    && sameId(task.projectId, initialProjectId)
-                )?.id ?? null;
 
                 setSelectedOrganizationId(initialOrganizationId);
                 setSelectedClientId(initialClientId);
@@ -508,6 +566,29 @@ export default function TasksPage({
         };
     }, [currentOrganizationId, organizations]);
 
+    useEffect(() => {
+        const availableOrganizations = organizations.reduce((set, organization) => {
+            if (organization.id != null) {
+                set.add(String(organization.id));
+            }
+            return set;
+        }, new Set());
+
+        if (availableOrganizations.size === 0) {
+            if (selectedOrganizationId != null) {
+                setSelectedOrganizationId(null);
+                sessionStorage.removeItem("dev-productivity:tasks:selected-organization-id");
+            }
+            return;
+        }
+
+        if (selectedOrganizationId != null && !availableOrganizations.has(String(selectedOrganizationId))) {
+            const nextOrganizationId = [...availableOrganizations][0];
+            setSelectedOrganizationId(Number(nextOrganizationId));
+            sessionStorage.setItem("dev-productivity:tasks:selected-organization-id", String(nextOrganizationId));
+        }
+    }, [organizations, selectedOrganizationId]);
+
     const closeTransientDialogs = useCallback(() => {
         setValidationDialogOpen(false);
         setValidationIssues([]);
@@ -526,19 +607,44 @@ export default function TasksPage({
         closeTransientDialogs();
     }, [closeTransientDialogs]);
 
-    const getContextDefaults = (organizationId, clientId = null, projectId = null) => {
-        const nextOrganizationClients = clients.filter(client => sameId(client.organizationId, organizationId));
+    const getProjectsForContext = (organizationId, clientId, sourceProjects = projects) => {
+        if (organizationId == null || clientId == null) {
+            return [];
+        }
+
+        return sourceProjects.filter(project =>
+            sameId(project.organizationId, organizationId)
+            && sameId(project.clientId, clientId)
+        );
+    };
+
+    const resolveProjectSelection = (organizationId, clientId, currentProjectId = null, sourceProjects = projects) => {
+        const contextProjects = getProjectsForContext(organizationId, clientId, sourceProjects);
+        if (contextProjects.length === 0) {
+            return null;
+        }
+
+        if (currentProjectId != null && contextProjects.some(project => sameId(project.id, currentProjectId))) {
+            return currentProjectId;
+        }
+
+        const openProjects = contextProjects.filter(project => !project.completed);
+        if (openProjects.length === 1) {
+            return openProjects[0].id;
+        }
+
+        return null;
+    };
+
+    const getContextDefaults = (organizationId, clientId = null, projectId = null, sourceProjects = projects) => {
+        const nextOrganizationClients = organizationId == null
+            ? clients
+            : clients.filter(client => sameId(client.organizationId, organizationId));
         const resolvedClientId = clientId != null && nextOrganizationClients.some(client => sameId(client.id, clientId))
             ? clientId
-            : nextOrganizationClients[0]?.id ?? null;
+            : null;
 
-        const nextProjects = projects.filter(project =>
-            sameId(project.organizationId, organizationId)
-            && sameId(project.clientId, resolvedClientId)
-        );
-        const resolvedProjectId = projectId != null && nextProjects.some(project => sameId(project.id, projectId))
-            ? projectId
-            : nextProjects[0]?.id ?? null;
+        const resolvedProjectId = resolveProjectSelection(organizationId, resolvedClientId, projectId, sourceProjects);
 
         return {
             organizationId,
@@ -576,9 +682,19 @@ export default function TasksPage({
 
     const applyFilterSelection = (organizationId, clientId = null, projectId = null) => {
         const defaults = getContextDefaults(organizationId, clientId, projectId);
+        const nextSelectedTaskId = resolveTaskSelection(
+            tasks,
+            defaults.organizationId,
+            defaults.clientId,
+            defaults.projectId,
+            showIncompleteOnly,
+            selectedTaskId
+        );
+
         setSelectedOrganizationId(defaults.organizationId);
         setSelectedClientId(defaults.clientId);
         setSelectedProjectId(defaults.projectId);
+        setSelectedTaskId(nextSelectedTaskId);
         if (defaults.organizationId == null) {
             sessionStorage.removeItem("dev-productivity:tasks:selected-organization-id");
         } else {
@@ -594,13 +710,6 @@ export default function TasksPage({
         } else {
             sessionStorage.setItem("dev-productivity:tasks:selected-project-id", String(defaults.projectId));
         }
-        setSelectedTaskId(
-            tasks.find(task =>
-                sameId(task.organizationId, defaults.organizationId)
-                && sameId(task.clientId, defaults.clientId)
-                && sameId(task.projectId, defaults.projectId)
-            )?.id ?? null
-        );
     };
 
     const handleRowSelect = (task) => {
@@ -698,7 +807,12 @@ export default function TasksPage({
 
         const parsedOrganizationId = nextOrganizationId === "" ? null : Number(nextOrganizationId);
         if (parsedOrganizationId == null) {
-            handleDraftChange("organizationId", null);
+            setDraftTask(current => (current ? {
+                ...current,
+                organizationId: null,
+                clientId: null,
+                projectId: null
+            } : current));
             return;
         }
 
@@ -706,11 +820,12 @@ export default function TasksPage({
         const nextClientId = nextClients.some(client => sameId(client.id, draftTask.clientId))
             ? draftTask.clientId
             : null;
+        const nextProjectId = resolveProjectSelection(parsedOrganizationId, nextClientId, draftTask.projectId);
         setDraftTask(current => (current ? {
             ...current,
             organizationId: parsedOrganizationId,
             clientId: nextClientId,
-            projectId: null
+            projectId: nextProjectId
         } : current));
     };
 
@@ -721,17 +836,19 @@ export default function TasksPage({
 
         const parsedClientId = nextClientId === "" ? null : Number(nextClientId);
         if (parsedClientId == null) {
-            handleDraftChange("clientId", null);
+            setDraftTask(current => (current ? {
+                ...current,
+                clientId: null,
+                projectId: null
+            } : current));
             return;
         }
 
-        const nextProjects = projects.filter(project =>
-            sameId(project.organizationId, draftTask.organizationId)
-            && sameId(project.clientId, parsedClientId)
+        const nextProjectId = resolveProjectSelection(
+            draftTask.organizationId,
+            parsedClientId,
+            draftTask.projectId
         );
-        const nextProjectId = nextProjects.some(project => sameId(project.id, draftTask.projectId))
-            ? draftTask.projectId
-            : null;
 
         setDraftTask(current => (current ? {
             ...current,
@@ -777,12 +894,17 @@ export default function TasksPage({
         }
 
         const parsedOrganizationId = Number(nextOrganizationId);
+        const nextClientId = selectedClientId != null && clients.some(client =>
+            sameId(client.organizationId, parsedOrganizationId) && sameId(client.id, selectedClientId)
+        )
+            ? selectedClientId
+            : null;
 
         if (editorOpen) {
             closeEditor();
         }
 
-        applyFilterSelection(parsedOrganizationId);
+        applyFilterSelection(parsedOrganizationId, nextClientId, selectedProjectId);
         closeTransientDialogs();
     };
 
@@ -791,13 +913,7 @@ export default function TasksPage({
             closeEditor();
         }
 
-        setSelectedOrganizationId(null);
-        sessionStorage.removeItem("dev-productivity:tasks:selected-organization-id");
-        setSelectedTaskId(tasks.find(task =>
-            (selectedClientId == null || sameId(task.clientId, selectedClientId))
-            && (selectedProjectId == null || sameId(task.projectId, selectedProjectId))
-            && (!showIncompleteOnly || !task.completed)
-        )?.id ?? null);
+        applyFilterSelection(null, null, null);
         closeTransientDialogs();
     };
 
@@ -808,34 +924,7 @@ export default function TasksPage({
             closeEditor();
         }
 
-        if (parsedClientId == null) {
-            setSelectedClientId(null);
-            setSelectedProjectId(null);
-            sessionStorage.removeItem("dev-productivity:tasks:selected-client-id");
-            sessionStorage.removeItem("dev-productivity:tasks:selected-project-id");
-            setSelectedTaskId(null);
-            closeTransientDialogs();
-            return;
-        }
-
-        const nextProjects = projects.filter(project =>
-            sameId(project.organizationId, selectedOrganizationId)
-            && sameId(project.clientId, parsedClientId)
-        );
-
-        setSelectedClientId(parsedClientId);
-        setSelectedProjectId(nextProjects[0]?.id ?? null);
-        sessionStorage.setItem("dev-productivity:tasks:selected-client-id", String(parsedClientId));
-        if (nextProjects[0]?.id == null) {
-            sessionStorage.removeItem("dev-productivity:tasks:selected-project-id");
-        } else {
-            sessionStorage.setItem("dev-productivity:tasks:selected-project-id", String(nextProjects[0].id));
-        }
-        setSelectedTaskId(tasks.find(task =>
-            sameId(task.organizationId, selectedOrganizationId)
-            && sameId(task.clientId, parsedClientId)
-            && sameId(task.projectId, nextProjects[0]?.id)
-        )?.id ?? null);
+        applyFilterSelection(selectedOrganizationId, parsedClientId, selectedProjectId);
         closeTransientDialogs();
     };
 
@@ -844,13 +933,7 @@ export default function TasksPage({
             closeEditor();
         }
 
-        setSelectedClientId(null);
-        sessionStorage.removeItem("dev-productivity:tasks:selected-client-id");
-        setSelectedTaskId(tasks.find(task =>
-            (selectedOrganizationId == null || sameId(task.organizationId, selectedOrganizationId))
-            && (selectedProjectId == null || sameId(task.projectId, selectedProjectId))
-            && (!showIncompleteOnly || !task.completed)
-        )?.id ?? null);
+        applyFilterSelection(selectedOrganizationId, null, null);
         closeTransientDialogs();
     };
 
@@ -861,17 +944,7 @@ export default function TasksPage({
             closeEditor();
         }
 
-        setSelectedProjectId(parsedProjectId);
-        if (parsedProjectId == null) {
-            sessionStorage.removeItem("dev-productivity:tasks:selected-project-id");
-        } else {
-            sessionStorage.setItem("dev-productivity:tasks:selected-project-id", String(parsedProjectId));
-        }
-        setSelectedTaskId(tasks.find(task =>
-            sameId(task.organizationId, selectedOrganizationId)
-            && sameId(task.clientId, selectedClientId)
-            && sameId(task.projectId, parsedProjectId)
-        )?.id ?? null);
+        applyFilterSelection(selectedOrganizationId, selectedClientId, parsedProjectId);
         closeTransientDialogs();
     };
 
@@ -880,13 +953,7 @@ export default function TasksPage({
             closeEditor();
         }
 
-        setSelectedProjectId(null);
-        sessionStorage.removeItem("dev-productivity:tasks:selected-project-id");
-        setSelectedTaskId(tasks.find(task =>
-            (selectedOrganizationId == null || sameId(task.organizationId, selectedOrganizationId))
-            && (selectedClientId == null || sameId(task.clientId, selectedClientId))
-            && (!showIncompleteOnly || !task.completed)
-        )?.id ?? null);
+        applyFilterSelection(selectedOrganizationId, selectedClientId, null);
         closeTransientDialogs();
     };
 
@@ -1026,6 +1093,9 @@ export default function TasksPage({
         const actualHoursClassName = shouldHighlightActualHours(actualHoursValue, estimatedHoursValue)
             ? "tasks-hours-danger"
             : "";
+        const organizationLabel = resolveOrganizationLabel(organizations, task.organizationId);
+        const clientLabel = resolveClientLabel(clients, task.clientId);
+        const projectLabel = resolveProjectLabel(projects, task.projectId);
 
         return (
             <tr
@@ -1041,9 +1111,11 @@ export default function TasksPage({
                         </span>
                     ) : null}
                 </td>
+                <td>{organizationLabel}</td>
+                <td>{clientLabel}</td>
+                <td>{projectLabel}</td>
                 <td>{formatDate(task.created_at)}</td>
                 <td>{task.task_number}</td>
-                <td>{resolveClientLabel(clients, task.clientId)}</td>
                 <td>{task.name}</td>
                 <td className={["tasks-number-cell", actualHoursClassName].filter(Boolean).join(" ")}>{actualHoursValue.toFixed(2)}</td>
                 <td className="tasks-number-cell">{estimatedHoursValue.toFixed(2)}</td>
@@ -1053,26 +1125,74 @@ export default function TasksPage({
 
     const filterClients = useMemo(
         () => selectedOrganizationId == null
-            ? clients
+            ? []
             : clients.filter(client => sameId(client.organizationId, selectedOrganizationId)),
         [clients, selectedOrganizationId]
     );
     const filterProjects = useMemo(
-        () => projects.filter(project =>
-            (selectedOrganizationId == null || sameId(project.organizationId, selectedOrganizationId))
-            && (selectedClientId == null || sameId(project.clientId, selectedClientId))
-        ),
+        () => selectedOrganizationId == null || selectedClientId == null
+            ? []
+            : getProjectsForContext(selectedOrganizationId, selectedClientId),
         [projects, selectedClientId, selectedOrganizationId]
     );
     const editorClients = draftTask
-        ? clients.filter(client => draftTask.organizationId == null || sameId(client.organizationId, draftTask.organizationId))
+        ? draftTask.organizationId == null
+            ? []
+            : clients.filter(client => sameId(client.organizationId, draftTask.organizationId))
         : [];
     const editorProjects = draftTask
-        ? projects.filter(project =>
-            (draftTask.organizationId == null || sameId(project.organizationId, draftTask.organizationId))
-            && (draftTask.clientId == null || sameId(project.clientId, draftTask.clientId))
-        )
+        ? getProjectsForContext(draftTask.organizationId, draftTask.clientId)
         : [];
+
+    useEffect(() => {
+        if (filterClients.length === 0) {
+            if (selectedClientId != null) {
+                setSelectedClientId(null);
+                sessionStorage.removeItem("dev-productivity:tasks:selected-client-id");
+            }
+            return;
+        }
+
+        if (selectedClientId == null || !filterClients.some(client => sameId(client.id, selectedClientId))) {
+            setSelectedClientId(null);
+            sessionStorage.removeItem("dev-productivity:tasks:selected-client-id");
+        }
+    }, [filterClients, selectedClientId]);
+
+    useEffect(() => {
+        const resolvedProjectId = resolveProjectSelection(
+            selectedOrganizationId,
+            selectedClientId,
+            selectedProjectId
+        );
+
+        if (!sameId(resolvedProjectId, selectedProjectId)) {
+            if (resolvedProjectId == null) {
+                if (selectedProjectId != null) {
+                    setSelectedProjectId(null);
+                    sessionStorage.removeItem("dev-productivity:tasks:selected-project-id");
+                }
+            } else {
+                setSelectedProjectId(resolvedProjectId);
+                sessionStorage.setItem("dev-productivity:tasks:selected-project-id", String(resolvedProjectId));
+            }
+        }
+    }, [projects, selectedClientId, selectedOrganizationId, selectedProjectId]);
+
+    useEffect(() => {
+        const nextSelectedTaskId = resolveTaskSelection(
+            tasks,
+            selectedOrganizationId,
+            selectedClientId,
+            selectedProjectId,
+            showIncompleteOnly,
+            selectedTaskId
+        );
+
+        if (!sameId(nextSelectedTaskId, selectedTaskId)) {
+            setSelectedTaskId(nextSelectedTaskId);
+        }
+    }, [selectedClientId, selectedOrganizationId, selectedProjectId, selectedTaskId, showIncompleteOnly, tasks]);
 
     return (
         <div className="tracking-main organizations-main">
@@ -1100,19 +1220,19 @@ export default function TasksPage({
                 <div className="tasks-filter-values-row">
                     <div className="tasks-filter-field">
                         <div className="selector-clear-control">
-                            <select
-                                id="tasks-organization-select"
-                                className="clients-filter-select tasks-filter-select"
-                                value={String(selectedOrganizationId ?? "")}
-                                onChange={event => handleOrganizationChange(event.target.value)}
-                            >
-                                <option value=""></option>
-                                {organizations.map(organization => (
-                                    <option key={organization.id} value={String(organization.id)}>
-                                        {organization.shortName}
-                                    </option>
-                                ))}
-                            </select>
+                        <select
+                            id="tasks-organization-select"
+                            className="clients-filter-select tasks-filter-select"
+                            value={String(selectedOrganizationId ?? "")}
+                            onChange={event => handleOrganizationChange(event.target.value)}
+                        >
+                            <option value=""></option>
+                            {organizations.map(organization => (
+                                <option key={organization.id} value={String(organization.id)}>
+                                    {organization.shortName}
+                                </option>
+                            ))}
+                        </select>
                             {selectedOrganizationId != null && (
                                 <button type="button" className="selector-clear-button" onClick={handleClearOrganizationFilter} aria-label="Clear organization filter">
                                     ×
@@ -1224,9 +1344,11 @@ export default function TasksPage({
                         <table className="app-master-data-table tasks-table">
                             <colgroup>
                                 <col className="tasks-col-completed" />
+                                <col className="tasks-col-client" />
+                                <col className="tasks-col-client" />
+                                <col className="tasks-col-client" />
                                 <col className="tasks-col-date" />
                                 <col className="tasks-col-number" />
-                                <col className="tasks-col-client" />
                                 <col className="tasks-col-name" />
                                 <col className="tasks-col-hours" />
                                 <col className="tasks-col-hours" />
@@ -1234,9 +1356,11 @@ export default function TasksPage({
                             <thead>
                                 <tr>
                                     <th>Completed</th>
+                                    <th>Organization</th>
+                                    <th>Client</th>
+                                    <th>Project</th>
                                     <th>Created Date</th>
                                     <th>Task Number</th>
-                                    <th>Client</th>
                                     <th>Name</th>
                                     <th className="tasks-number-cell">Actual Hours</th>
                                     <th className="tasks-number-cell">Estimated Hours</th>

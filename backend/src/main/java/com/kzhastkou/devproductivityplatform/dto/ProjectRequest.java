@@ -22,4 +22,6 @@ public class ProjectRequest {
 
     @Size(max = 2000)
     private String description;
+
+    private Boolean completed;
 }

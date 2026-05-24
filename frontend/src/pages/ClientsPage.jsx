@@ -43,6 +43,10 @@ function readStoredNumber(key) {
     return Number.isFinite(parsed) ? parsed : null;
 }
 
+function resolveOrganizationLabel(organizations, organizationId) {
+    return organizations.find(organization => organization.id === organizationId)?.shortName ?? "";
+}
+
 export default function ClientsPage({
     organizations = [],
     currentOrganizationId = null
@@ -333,6 +337,7 @@ export default function ClientsPage({
 
     const renderRow = (client) => {
         const isSelected = client.id === selectedClientId;
+        const organizationLabel = resolveOrganizationLabel(organizations, client.organizationId);
 
         return (
             <tr
@@ -342,10 +347,10 @@ export default function ClientsPage({
                 onDoubleClick={() => handleRowEditRequest(client)}
             >
                 <td>
-                    <span className="organizations-readonly-cell">{client.shortName}</span>
+                    <span className="organizations-readonly-cell">{organizationLabel}</span>
                 </td>
                 <td>
-                    <span className="organizations-readonly-cell">{client.fullName}</span>
+                    <span className="organizations-readonly-cell">{client.shortName}</span>
                 </td>
             </tr>
         );
@@ -435,12 +440,12 @@ export default function ClientsPage({
                         <table className="app-master-data-table organizations-table tasks-table">
                             <colgroup>
                                 <col className="organizations-col-short" />
-                                <col className="organizations-col-full" />
+                                <col className="organizations-col-short" />
                             </colgroup>
                             <thead>
                                 <tr>
+                                    <th>Organization</th>
                                     <th>Short Name</th>
-                                    <th>Full Name</th>
                                 </tr>
                             </thead>
                             <tbody>{filteredClients.map(renderRow)}</tbody>
@@ -478,7 +483,7 @@ export default function ClientsPage({
                                         </select>
                                         {draftClient.organizationId != null && (
                                             <button type="button" className="selector-clear-button" onClick={() => handleDraftOrganizationChange("")} aria-label="Clear organization">
-                                                Г—
+                                                ×
                                             </button>
                                         )}
                                     </div>

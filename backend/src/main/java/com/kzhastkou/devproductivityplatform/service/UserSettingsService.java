@@ -32,7 +32,7 @@ public class UserSettingsService {
     public UserSettingsResponse updateForUser(Long developerId, UserSettingsRequest request) {
         Developer developer = resolveDeveloper(developerId);
         Organization organization = request.getCurrentOrganizationId() != null
-                ? resolveOrganization(request.getCurrentOrganizationId())
+                ? resolveOrganization(request.getCurrentOrganizationId(), developer.getId())
                 : null;
         UserSettings settings = getOrCreateSettings(developer);
 
@@ -58,17 +58,19 @@ public class UserSettingsService {
                 .orElseThrow(() -> new NotFoundException("Developer not found"));
     }
 
-    private Organization resolveOrganization(Long organizationId) {
-        return organizationRepository.findById(organizationId)
+    private Organization resolveOrganization(Long organizationId, Long developerId) {
+        return organizationRepository.findByIdAndDeveloperId(organizationId, developerId)
                 .orElseThrow(() -> new NotFoundException("Organization not found"));
     }
 
     private Organization resolveDefaultOrganization(Developer developer) {
-        if (developer.getOrganization() != null) {
+        if (developer.getOrganization() != null
+                && developer.getOrganization().getDeveloper() != null
+                && developer.getOrganization().getDeveloper().getId().equals(developer.getId())) {
             return developer.getOrganization();
         }
 
-        return organizationRepository.findAll().stream()
+        return organizationRepository.findByDeveloperIdOrderByIdAsc(developer.getId()).stream()
                 .findFirst()
                 .orElse(null);
     }

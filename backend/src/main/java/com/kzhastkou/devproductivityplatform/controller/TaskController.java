@@ -3,8 +3,6 @@ package com.kzhastkou.devproductivityplatform.controller;
 import com.kzhastkou.devproductivityplatform.dto.TaskRequest;
 import com.kzhastkou.devproductivityplatform.dto.TaskResponse;
 import com.kzhastkou.devproductivityplatform.dto.TaskTimeEntryResponse;
-import com.kzhastkou.devproductivityplatform.entity.Developer;
-import com.kzhastkou.devproductivityplatform.repository.DeveloperRepository;
 import com.kzhastkou.devproductivityplatform.service.TaskService;
 import com.kzhastkou.devproductivityplatform.service.TimeEntryService;
 import jakarta.validation.Valid;
@@ -29,11 +27,10 @@ public class TaskController {
 
     private final TaskService taskService;
     private final TimeEntryService timeEntryService;
-    private final DeveloperRepository developerRepository;
 
     @GetMapping
     public List<TaskResponse> getAll() {
-        return taskService.findAll();
+        return taskService.findAll(resolveCurrentUserId());
     }
 
     @GetMapping("/my")
@@ -43,7 +40,7 @@ public class TaskController {
 
     @GetMapping("/{id:\\d+}")
     public TaskResponse getById(@PathVariable Long id) {
-        return taskService.findById(id);
+        return taskService.findById(id, resolveCurrentUserId());
     }
 
     @PostMapping
@@ -58,7 +55,7 @@ public class TaskController {
 
     @GetMapping("/{id:\\d+}/delete-check")
     public void checkCanDelete(@PathVariable Long id) {
-        taskService.validateCanDelete(id);
+        taskService.validateCanDelete(id, resolveCurrentUserId());
     }
 
     @GetMapping("/{id:\\d+}/time-entries")
@@ -68,7 +65,7 @@ public class TaskController {
 
     @DeleteMapping("/{id:\\d+}")
     public void delete(@PathVariable Long id) {
-        taskService.delete(id);
+        taskService.delete(id, resolveCurrentUserId());
     }
 
     private Long resolveCurrentUserId() {
@@ -79,8 +76,6 @@ public class TaskController {
             return userId;
         }
 
-        return developerRepository.findFirstByOrderByIdAsc()
-                .map(Developer::getId)
-                .orElseThrow(() -> new IllegalStateException("No developer available for tasks"));
+        throw new IllegalStateException("Unable to resolve current user");
     }
 }

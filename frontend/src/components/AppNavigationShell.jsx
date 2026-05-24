@@ -69,6 +69,18 @@ export default function AppNavigationShell({ activePage, onNavigate, onLogout, c
                     >
                         Settings
                     </button>
+                    <button
+                        type="button"
+                        className={[
+                            "app-shell-nav-item",
+                            activePage === "administration" ? "app-shell-nav-item-active" : ""
+                        ].filter(Boolean).join(" ")}
+                        onClick={() => onNavigate("administration")}
+                        aria-current={activePage === "administration" ? "page" : undefined}
+                    >
+                        Administration
+                    </button>
+                    <div className="app-shell-footer-gap" aria-hidden="true" />
                     <button type="button" className="app-shell-logout" onClick={onLogout}>
                         Logout
                     </button>

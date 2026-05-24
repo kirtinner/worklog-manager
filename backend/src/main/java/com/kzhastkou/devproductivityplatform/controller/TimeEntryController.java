@@ -4,8 +4,6 @@ import com.kzhastkou.devproductivityplatform.dto.TimeEntryDayRequest;
 import com.kzhastkou.devproductivityplatform.dto.TimeEntryRequest;
 import com.kzhastkou.devproductivityplatform.dto.TimeEntryResponse;
 import com.kzhastkou.devproductivityplatform.dto.TaskTimeEntryResponse;
-import com.kzhastkou.devproductivityplatform.entity.Developer;
-import com.kzhastkou.devproductivityplatform.repository.DeveloperRepository;
 import com.kzhastkou.devproductivityplatform.service.TimeEntryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +20,6 @@ import java.util.List;
 public class TimeEntryController {
 
     private final TimeEntryService timeEntryService;
-    private final DeveloperRepository developerRepository;
 
     @PostMapping
     public TimeEntryResponse create(@Valid @RequestBody TimeEntryRequest request) {
@@ -74,8 +71,6 @@ public class TimeEntryController {
             return userId;
         }
 
-        return developerRepository.findFirstByOrderByIdAsc()
-                .map(Developer::getId)
-                .orElseThrow(() -> new IllegalStateException("No developer available for time tracking"));
+        throw new IllegalStateException("Unable to resolve current user");
     }
 }

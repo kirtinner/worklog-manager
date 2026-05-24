@@ -13,7 +13,8 @@ function createProjectDraft(organizationId, clientId) {
         organizationId,
         clientId,
         shortName: "",
-        fullName: ""
+        fullName: "",
+        completed: false
     };
 }
 
@@ -46,6 +47,24 @@ function getFirstVisibleProjectId(sourceProjects, organizationId, clientId) {
     )?.id ?? null;
 }
 
+function getVisibleProjectsForContext(sourceProjects, organizationId, clientId, onlyOpenProjects) {
+    let visibleProjects = sourceProjects;
+
+    if (organizationId != null) {
+        visibleProjects = visibleProjects.filter(project => project.organizationId === organizationId);
+    }
+
+    if (clientId != null) {
+        visibleProjects = visibleProjects.filter(project => project.clientId === clientId);
+    }
+
+    if (onlyOpenProjects) {
+        visibleProjects = visibleProjects.filter(project => !project.completed);
+    }
+
+    return visibleProjects;
+}
+
 function readStoredNumber(key) {
     const value = sessionStorage.getItem(key);
     if (value == null || value === "") {
@@ -56,12 +75,32 @@ function readStoredNumber(key) {
     return Number.isFinite(parsed) ? parsed : null;
 }
 
+function readStoredBoolean(key, defaultValue = false) {
+    const value = sessionStorage.getItem(key);
+    if (value == null) {
+        return defaultValue;
+    }
+
+    return value !== "false";
+}
+
+function resolveOrganizationLabel(organizations, organizationId) {
+    return organizations.find(organization => organization.id === organizationId)?.shortName ?? "";
+}
+
+function resolveClientLabel(clients, clientId) {
+    return clients.find(client => client.id === clientId)?.shortName ?? "";
+}
+
 export default function ProjectsPage({
     organizations = [],
     currentOrganizationId = null
 }) {
     const [clients, setClients] = useState([]);
     const [projects, setProjects] = useState([]);
+    const [showOnlyOpenProjects, setShowOnlyOpenProjects] = useState(
+        readStoredBoolean("dev-productivity:projects:show-only-open-projects", true)
+    );
     const [selectedOrganizationId, setSelectedOrganizationId] = useState(
         readStoredNumber("dev-productivity:projects:selected-organization-id")
         ?? currentOrganizationId
@@ -81,25 +120,24 @@ export default function ProjectsPage({
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const handleCancelRef = useRef(() => {});
 
-    const filteredClients = useMemo(
-        () => selectedOrganizationId == null
-            ? clients
-            : clients.filter(client => client.organizationId === selectedOrganizationId),
-        [clients, selectedOrganizationId]
-    );
-
     const filteredProjects = useMemo(
-        () => projects.filter(project =>
-            (selectedOrganizationId == null || project.organizationId === selectedOrganizationId)
-            && (selectedClientId == null || project.clientId === selectedClientId)
-        ),
-        [projects, selectedClientId, selectedOrganizationId]
+        () => getVisibleProjectsForContext(projects, selectedOrganizationId, selectedClientId, showOnlyOpenProjects),
+        [projects, selectedClientId, selectedOrganizationId, showOnlyOpenProjects]
     );
 
     const draftOrganizationId = draftProject?.organizationId ?? null;
     const draftClients = useMemo(
-        () => clients.filter(client => draftOrganizationId == null || client.organizationId === draftOrganizationId),
+        () => draftOrganizationId == null
+            ? []
+            : clients.filter(client => client.organizationId === draftOrganizationId),
         [clients, draftOrganizationId]
+    );
+    const draftOrganizations = organizations;
+    const filteredClients = useMemo(
+        () => selectedOrganizationId == null
+            ? []
+            : clients.filter(client => client.organizationId === selectedOrganizationId),
+        [clients, selectedOrganizationId]
     );
 
     const selectedProject = filteredProjects.find(project => project.id === selectedProjectId) ?? null;
@@ -119,17 +157,24 @@ export default function ProjectsPage({
                 const storedOrganizationId = readStoredNumber("dev-productivity:projects:selected-organization-id");
                 const storedClientId = readStoredNumber("dev-productivity:projects:selected-client-id");
                 const initialOrganizationId =
-                    storedOrganizationId
-                    ?? currentOrganizationId
-                    ?? organizations[0]?.id
-                    ?? nextClients[0]?.organizationId
-                    ?? null;
-                const initialClientId = storedClientId != null && nextClients.some(client =>
-                    client.id === storedClientId && client.organizationId === initialOrganizationId
-                )
+                    storedOrganizationId != null && organizations.some(organization => organization.id === storedOrganizationId)
+                        ? storedOrganizationId
+                        : currentOrganizationId != null && organizations.some(organization => organization.id === currentOrganizationId)
+                            ? currentOrganizationId
+                            : organizations[0]?.id ?? null;
+                const initialClients = initialOrganizationId == null
+                    ? nextClients
+                    : nextClients.filter(client => client.organizationId === initialOrganizationId);
+                const initialClientId = storedClientId != null && initialClients.some(client => client.id === storedClientId)
                     ? storedClientId
-                    : nextClients.find(client => client.organizationId === initialOrganizationId)?.id ?? null;
-                const initialProjectId = getFirstVisibleProjectId(nextProjects, initialOrganizationId, initialClientId);
+                    : initialClients[0]?.id ?? null;
+                const initialProjects = getVisibleProjectsForContext(
+                    nextProjects,
+                    initialOrganizationId,
+                    initialClientId,
+                    showOnlyOpenProjects
+                );
+                const initialProjectId = initialProjects[0]?.id ?? null;
 
                 setClients(nextClients);
                 setProjects(nextProjects);
@@ -166,21 +211,84 @@ export default function ProjectsPage({
         closeTransientDialogs();
     }, [closeTransientDialogs]);
 
+    useEffect(() => {
+        if (organizations.length === 0) {
+            if (selectedOrganizationId != null) {
+                setSelectedOrganizationId(null);
+                sessionStorage.removeItem("dev-productivity:projects:selected-organization-id");
+            }
+            return;
+        }
+
+        if (selectedOrganizationId != null && !organizations.some(organization => organization.id === selectedOrganizationId)) {
+            const nextOrganizationId = organizations[0]?.id ?? null;
+            setSelectedOrganizationId(nextOrganizationId);
+            if (nextOrganizationId == null) {
+                sessionStorage.removeItem("dev-productivity:projects:selected-organization-id");
+            } else {
+                sessionStorage.setItem("dev-productivity:projects:selected-organization-id", String(nextOrganizationId));
+            }
+        }
+    }, [organizations, selectedOrganizationId]);
+
+    useEffect(() => {
+        if (clients.length === 0) {
+            if (selectedClientId != null) {
+                setSelectedClientId(null);
+                sessionStorage.removeItem("dev-productivity:projects:selected-client-id");
+            }
+            return;
+        }
+
+        if (selectedClientId == null || !filteredClients.some(client => client.id === selectedClientId)) {
+            setSelectedClientId(null);
+            sessionStorage.removeItem("dev-productivity:projects:selected-client-id");
+        }
+    }, [filteredClients, selectedClientId]);
+
+    useEffect(() => {
+        if (filteredProjects.length === 0) {
+            if (selectedProjectId != null) {
+                setSelectedProjectId(null);
+            }
+            return;
+        }
+
+        if (selectedProjectId == null || !filteredProjects.some(project => project.id === selectedProjectId)) {
+            setSelectedProjectId(filteredProjects[0]?.id ?? null);
+        }
+    }, [filteredProjects, selectedProjectId]);
+
     const applyFilterSelection = (organizationId, clientId = null, sourceProjects = projects) => {
-        const nextOrganizationClients = clients.filter(client => client.organizationId === organizationId);
+        const nextOrganizationClients = organizationId == null
+            ? clients
+            : clients.filter(client => client.organizationId === organizationId);
         const resolvedClientId = clientId != null && nextOrganizationClients.some(client => client.id === clientId)
             ? clientId
-            : nextOrganizationClients[0]?.id ?? null;
+            : null;
+        const visibleProjects = getVisibleProjectsForContext(
+            sourceProjects,
+            organizationId,
+            resolvedClientId,
+            showOnlyOpenProjects
+        );
+        const nextProjectId = selectedProjectId != null && visibleProjects.some(project => project.id === selectedProjectId)
+            ? selectedProjectId
+            : visibleProjects[0]?.id ?? null;
 
         setSelectedOrganizationId(organizationId);
         setSelectedClientId(resolvedClientId);
-        sessionStorage.setItem("dev-productivity:projects:selected-organization-id", String(organizationId));
+        if (organizationId == null) {
+            sessionStorage.removeItem("dev-productivity:projects:selected-organization-id");
+        } else {
+            sessionStorage.setItem("dev-productivity:projects:selected-organization-id", String(organizationId));
+        }
         if (resolvedClientId == null) {
             sessionStorage.removeItem("dev-productivity:projects:selected-client-id");
         } else {
             sessionStorage.setItem("dev-productivity:projects:selected-client-id", String(resolvedClientId));
         }
-        setSelectedProjectId(getFirstVisibleProjectId(sourceProjects, organizationId, resolvedClientId));
+        setSelectedProjectId(nextProjectId);
     };
 
     const openEditorForExisting = (project) => {
@@ -192,7 +300,7 @@ export default function ProjectsPage({
     };
 
     const openEditorForNew = () => {
-        const nextClientId = selectedClientId ?? filteredClients[0]?.id ?? null;
+        const nextClientId = selectedClientId ?? null;
         const nextDraft = createProjectDraft(selectedOrganizationId, nextClientId);
 
         setEditorOpen(true);
@@ -235,9 +343,18 @@ export default function ProjectsPage({
     const handleDraftOrganizationChange = (nextOrganizationId) => {
         const parsedOrganizationId = nextOrganizationId === "" ? null : Number(nextOrganizationId);
 
+        const nextClientId = parsedOrganizationId == null
+            ? null
+            : draftProject?.clientId != null && clients.some(client =>
+                client.organizationId === parsedOrganizationId && client.id === draftProject.clientId
+            )
+                ? draftProject.clientId
+                : null;
+
         setDraftProject(current => (current ? {
             ...current,
-            organizationId: parsedOrganizationId
+            organizationId: parsedOrganizationId,
+            clientId: nextClientId
         } : current));
     };
 
@@ -246,38 +363,41 @@ export default function ProjectsPage({
         handleDraftChange("clientId", parsedClientId);
     };
 
+    const handleCompletedChange = (checked) => {
+        handleDraftChange("completed", checked);
+    };
+
     const handleOrganizationChange = (nextOrganizationId) => {
         if (nextOrganizationId === "") {
             handleClearOrganizationFilter();
             return;
         }
 
-        applyFilterSelection(Number(nextOrganizationId));
+        const parsedOrganizationId = Number(nextOrganizationId);
+        const nextClientId = selectedClientId != null && clients.some(client =>
+            client.organizationId === parsedOrganizationId && client.id === selectedClientId
+        )
+            ? selectedClientId
+            : null;
+
+        applyFilterSelection(parsedOrganizationId, nextClientId);
         closeTransientDialogs();
     };
 
     const handleClearOrganizationFilter = () => {
-        setSelectedOrganizationId(null);
-        sessionStorage.removeItem("dev-productivity:projects:selected-organization-id");
+        applyFilterSelection(null, null);
         closeTransientDialogs();
     };
 
     const handleClientChange = (nextClientId) => {
         const parsedClientId = nextClientId === "" ? null : Number(nextClientId);
 
-        setSelectedClientId(parsedClientId);
-        if (parsedClientId == null) {
-            sessionStorage.removeItem("dev-productivity:projects:selected-client-id");
-        } else {
-            sessionStorage.setItem("dev-productivity:projects:selected-client-id", String(parsedClientId));
-        }
-        setSelectedProjectId(getFirstVisibleProjectId(projects, selectedOrganizationId, parsedClientId));
+        applyFilterSelection(selectedOrganizationId, parsedClientId);
         closeTransientDialogs();
     };
 
     const handleClearClientFilter = () => {
-        setSelectedClientId(null);
-        sessionStorage.removeItem("dev-productivity:projects:selected-client-id");
+        applyFilterSelection(selectedOrganizationId, null);
         closeTransientDialogs();
     };
 
@@ -305,7 +425,13 @@ export default function ProjectsPage({
             const nextProjects = projects.filter(project => project.id !== projectId);
 
             setProjects(nextProjects);
-            setSelectedProjectId(getFirstVisibleProjectId(nextProjects, selectedOrganizationId, selectedClientId));
+            const visibleProjects = getVisibleProjectsForContext(
+                nextProjects,
+                selectedOrganizationId,
+                selectedClientId,
+                showOnlyOpenProjects
+            );
+            setSelectedProjectId(getFirstVisibleProjectId(visibleProjects, selectedOrganizationId, selectedClientId));
             closeTransientDialogs();
         } catch (error) {
             const message =
@@ -339,7 +465,8 @@ export default function ProjectsPage({
                 clientId: draftProject.clientId,
                 shortName: draftProject.shortName.trim(),
                 fullName: draftProject.fullName.trim(),
-                description: draftProject.description ?? ""
+                description: draftProject.description ?? "",
+                completed: Boolean(draftProject.completed)
             };
             const savedProject = isNewProject
                 ? await apiCreateProject(payload)
@@ -359,13 +486,17 @@ export default function ProjectsPage({
                 );
 
             setProjects(nextProjects);
-            if (
-                normalizedProject.organizationId === selectedOrganizationId
-                && normalizedProject.clientId === selectedClientId
-            ) {
+            const visibleProjects = getVisibleProjectsForContext(
+                nextProjects,
+                selectedOrganizationId,
+                selectedClientId,
+                showOnlyOpenProjects
+            );
+
+            if (visibleProjects.some(project => project.id === normalizedProject.id)) {
                 setSelectedProjectId(normalizedProject.id);
             } else {
-                setSelectedProjectId(getFirstVisibleProjectId(nextProjects, selectedOrganizationId, selectedClientId));
+                setSelectedProjectId(getFirstVisibleProjectId(visibleProjects, selectedOrganizationId, selectedClientId));
             }
             closeEditor();
         } catch (error) {
@@ -412,6 +543,8 @@ export default function ProjectsPage({
 
     const renderRow = (project) => {
         const isSelected = project.id === selectedProjectId;
+        const organizationLabel = resolveOrganizationLabel(organizations, project.organizationId);
+        const clientLabel = resolveClientLabel(clients, project.clientId);
 
         return (
             <tr
@@ -420,11 +553,21 @@ export default function ProjectsPage({
                 onClick={() => handleRowSelect(project)}
                 onDoubleClick={() => handleRowEditRequest(project)}
             >
-                <td>
-                    <span className="organizations-readonly-cell">{project.shortName}</span>
+                <td className="tasks-completed-cell">
+                    {project.completed ? (
+                        <span className="tasks-completed-indicator" aria-label="Completed" title="Completed">
+                            {"\u2713"}
+                        </span>
+                    ) : null}
                 </td>
                 <td>
-                    <span className="organizations-readonly-cell">{project.fullName}</span>
+                    <span className="organizations-readonly-cell">{organizationLabel}</span>
+                </td>
+                <td>
+                    <span className="organizations-readonly-cell">{clientLabel}</span>
+                </td>
+                <td>
+                    <span className="organizations-readonly-cell">{project.shortName}</span>
                 </td>
             </tr>
         );
@@ -508,7 +651,19 @@ export default function ProjectsPage({
                             <p className="organizations-subtitle">{projectCountLabel}</p>
                         </div>
 
-                        <div className="clients-toolbar">
+                        <div className="organizations-toolbar">
+                            <label className="tasks-toolbar-toggle">
+                                <input
+                                    type="checkbox"
+                                    checked={showOnlyOpenProjects}
+                                    onChange={event => {
+                                        const nextValue = event.target.checked;
+                                        setShowOnlyOpenProjects(nextValue);
+                                        sessionStorage.setItem("dev-productivity:projects:show-only-open-projects", String(nextValue));
+                                    }}
+                                />
+                                <span>Only open projects</span>
+                            </label>
                             <div className="organizations-toolbar-actions">
                                 <button
                                     type="button"
@@ -541,13 +696,17 @@ export default function ProjectsPage({
                     <div className="tracking-panel-body organizations-panel-body">
                         <table className="app-master-data-table organizations-table tasks-table">
                             <colgroup>
+                                <col className="projects-col-completed" />
                                 <col className="organizations-col-short" />
-                                <col className="organizations-col-full" />
+                                <col className="organizations-col-short" />
+                                <col className="organizations-col-short" />
                             </colgroup>
                             <thead>
                                 <tr>
+                                    <th>Completed</th>
+                                    <th>Organization</th>
+                                    <th>Client</th>
                                     <th>Short Name</th>
-                                    <th>Full Name</th>
                                 </tr>
                             </thead>
                             <tbody>{filteredProjects.map(renderRow)}</tbody>
@@ -559,7 +718,7 @@ export default function ProjectsPage({
             {editorOpen && draftProject && (
                 <div className="tracking-modal-overlay" role="presentation">
                     <div
-                        className="tracking-modal tracking-modal-confirm tracking-modal-editor tracking-modal-client-editor"
+                        className="tracking-modal tracking-modal-confirm tracking-modal-editor tracking-modal-client-editor tracking-modal-project-editor"
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby="projects-editor-title"
@@ -577,7 +736,7 @@ export default function ProjectsPage({
                                             onChange={event => handleDraftOrganizationChange(event.target.value)}
                                         >
                                             <option value=""></option>
-                                            {organizations.map(organization => (
+                                            {draftOrganizations.map(organization => (
                                                 <option key={organization.id} value={String(organization.id)}>
                                                     {organization.shortName}
                                                 </option>
@@ -611,6 +770,18 @@ export default function ProjectsPage({
                                                 ×
                                             </button>
                                         )}
+                                    </div>
+                                </label>
+
+                                <label className="tracking-modal-field tracking-modal-checkbox-field">
+                                    <span>Completed</span>
+                                    <div className="tracking-modal-checkbox-control">
+                                        <input
+                                            type="checkbox"
+                                            checked={Boolean(draftProject.completed)}
+                                            onChange={event => handleCompletedChange(event.target.checked)}
+                                        />
+                                        <span>Mark this project as completed</span>
                                     </div>
                                 </label>
 

@@ -6,6 +6,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.kzhastkou.devproductivityplatform.entity.Developer;
+import com.kzhastkou.devproductivityplatform.repository.DeveloperRepository;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -14,7 +16,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
 
 @Component
@@ -23,18 +24,11 @@ import java.util.List;
 public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final DeveloperRepository developerRepository;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        String path = request.getRequestURI();
-        boolean shouldSkip = HttpMethod.OPTIONS.matches(request.getMethod())
-                || path.equals("/api/user-settings")
-                || path.equals("/api/user-settings/")
-                || path.startsWith("/api/user-settings/");
-        if (shouldSkip && path.startsWith("/api/user-settings")) {
-            log.info("JwtFilter bypass for {} {}", request.getMethod(), path);
-        }
-        return shouldSkip;
+        return HttpMethod.OPTIONS.matches(request.getMethod());
     }
 
     @Override
@@ -54,12 +48,16 @@ public class JwtFilter extends OncePerRequestFilter {
 
         try {
             Long userId = jwtService.extractUserId(token);
+            Developer developer = developerRepository.findById(userId)
+                    .orElseThrow(() -> new IllegalStateException("Developer not found"));
+
+            String roleName = developer.getRole() != null ? developer.getRole().name() : "USER";
 
             UsernamePasswordAuthenticationToken auth =
                     new UsernamePasswordAuthenticationToken(
                             userId,
                             null,
-                            List.of(new SimpleGrantedAuthority("ROLE_USER"))
+                            List.of(new SimpleGrantedAuthority("ROLE_" + roleName))
                     );
 
             SecurityContextHolder.getContext().setAuthentication(auth);

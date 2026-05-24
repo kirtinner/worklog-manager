@@ -85,13 +85,9 @@ public class TimeEntryService {
 
     @Transactional(readOnly = true)
     public List<TaskTimeEntryResponse> getByTask(Long taskId, Long userId) {
-        Task task = taskRepository.findById(taskId)
+        Task task = taskRepository.findByIdAndDeveloperId(taskId, userId)
                 .orElseThrow(() -> new NotFoundException("Task not found"));
         Developer developer = getDeveloper(userId);
-
-        if (task.getDeveloper() != null && !task.getDeveloper().getId().equals(developer.getId())) {
-            throw new NotFoundException("Task is not available for the current user");
-        }
 
         return repository.findByDeveloperIdAndTaskId(developer.getId(), taskId)
                 .stream()
@@ -174,12 +170,8 @@ public class TimeEntryService {
     }
 
     private Task resolveTask(Long taskId, Developer developer) {
-        Task task = taskRepository.findById(taskId)
+        Task task = taskRepository.findByIdAndDeveloperId(taskId, developer.getId())
                 .orElseThrow(() -> new NotFoundException("Task not found"));
-
-        if (task.getDeveloper() != null && !task.getDeveloper().getId().equals(developer.getId())) {
-            throw new NotFoundException("Task is not available for the current user");
-        }
 
         return task;
     }

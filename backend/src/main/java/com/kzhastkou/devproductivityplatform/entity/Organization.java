@@ -4,7 +4,10 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "organizations")
+@Table(
+        name = "organizations",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"developer_id", "short_name"})
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -21,4 +24,8 @@ public class Organization {
 
     @Column(nullable = false)
     private String fullName;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "developer_id", nullable = false)
+    private Developer developer;
 }

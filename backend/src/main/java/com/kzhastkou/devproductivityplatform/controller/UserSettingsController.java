@@ -2,8 +2,6 @@ package com.kzhastkou.devproductivityplatform.controller;
 
 import com.kzhastkou.devproductivityplatform.dto.UserSettingsRequest;
 import com.kzhastkou.devproductivityplatform.dto.UserSettingsResponse;
-import com.kzhastkou.devproductivityplatform.entity.Developer;
-import com.kzhastkou.devproductivityplatform.repository.DeveloperRepository;
 import com.kzhastkou.devproductivityplatform.service.UserSettingsService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +21,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class UserSettingsController {
 
     private final UserSettingsService userSettingsService;
-    private final DeveloperRepository developerRepository;
 
     @GetMapping
     public UserSettingsResponse getSettings() {
@@ -52,8 +49,6 @@ public class UserSettingsController {
             return userId;
         }
 
-        return developerRepository.findFirstByOrderByIdAsc()
-                .map(Developer::getId)
-                .orElseThrow(() -> new IllegalStateException("No developer available for user settings"));
+        throw new IllegalStateException("Unable to resolve current user");
     }
 }

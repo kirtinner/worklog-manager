@@ -8,6 +8,7 @@ import {
     createTimeEntry,
     deleteTimeEntry,
     getClients,
+    getProjects,
     getTasks,
     getTimeEntriesByDate,
     getTimeEntriesByMonth,
@@ -120,11 +121,16 @@ function toOptionalNumber(value) {
     return Number.isFinite(parsed) ? parsed : null;
 }
 
+function getProjectLabel(project) {
+    return project?.shortName ?? project?.fullName ?? "";
+}
+
 function WorklogEntryModal({
     mode,
     draftEntry,
     organizations,
     clients,
+    projects,
     tasks,
     onChange,
     onSave,
@@ -133,12 +139,22 @@ function WorklogEntryModal({
     const availableClients = draftEntry.organizationId == null
         ? clients
         : clients.filter(client => sameId(client.organizationId, draftEntry.organizationId));
-    const availableTasks = draftEntry.clientId == null
+    const availableProjects = draftEntry.organizationId == null || draftEntry.clientId == null
+        ? []
+        : projects.filter(project =>
+            sameId(project.organizationId, draftEntry.organizationId)
+            && sameId(project.clientId, draftEntry.clientId)
+        );
+    const availableTasks = draftEntry.projectId == null
         ? []
         : tasks.filter(task =>
-            sameId(task.clientId, draftEntry.clientId)
-            && (draftEntry.organizationId == null || sameId(task.organizationId, draftEntry.organizationId))
+            sameId(task.projectId, draftEntry.projectId)
+            && sameId(task.clientId, draftEntry.clientId)
+            && sameId(task.organizationId, draftEntry.organizationId)
         );
+    const selectedProjectName = availableProjects.find(project => sameId(project.id, draftEntry.projectId))?.shortName
+        ?? draftEntry.projectName
+        ?? "";
     const selectedTaskName = availableTasks.find(task => sameId(task.id, draftEntry.taskId))?.name
         ?? draftEntry.taskName
         ?? "";
@@ -200,6 +216,30 @@ function WorklogEntryModal({
                                 </select>
                                 {draftEntry.clientId != null && (
                                     <button type="button" className="selector-clear-button" onClick={() => onChange("client", "")} aria-label="Clear client">
+                                        ×
+                                    </button>
+                                )}
+                            </div>
+                        </label>
+
+                        <label className="tracking-modal-field tracking-modal-worklog-task-field">
+                            <span>Project</span>
+                            <div className="selector-clear-control">
+                                <select
+                                    value={String(draftEntry.projectId ?? "")}
+                                    onChange={event => onChange("project", event.target.value)}
+                                    disabled={availableProjects.length === 0}
+                                    title={selectedProjectName}
+                                >
+                                    <option value=""></option>
+                                    {availableProjects.map(project => (
+                                        <option key={project.id} value={String(project.id)} title={project.fullName || project.shortName}>
+                                            {project.shortName}
+                                        </option>
+                                    ))}
+                                </select>
+                                {draftEntry.projectId != null && (
+                                    <button type="button" className="selector-clear-button" onClick={() => onChange("project", "")} aria-label="Clear project">
                                         ×
                                     </button>
                                 )}
@@ -285,6 +325,7 @@ export default function TimeTrackingPage({
 
     const [entries, setEntries] = useState([]);
     const [clients, setClients] = useState([]);
+    const [projects, setProjects] = useState([]);
     const [tasks, setTasks] = useState([]);
     const [selectedMonth, setSelectedMonth] = useState(initialSelectedDateValue.getMonth());
     const [selectedYear, setSelectedYear] = useState(initialSelectedDateValue.getFullYear());
@@ -308,19 +349,21 @@ export default function TimeTrackingPage({
     const filteredEntries = entries.filter(entry => entry.date === selectedDate);
     const selectedEntry = filteredEntries.find(entry => sameId(entry.id, selectedEntryId));
     const currentOrganizationId = toOptionalNumber(userSettings.currentOrganizationId);
+    const availableOrganizations = organizations;
 
     useEffect(() => {
         let active = true;
 
         async function loadLookups() {
             try {
-                const [nextClients, nextTasks] = await Promise.all([getClients(), getTasks()]);
+                const [nextClients, nextProjects, nextTasks] = await Promise.all([getClients(), getProjects(), getTasks()]);
 
                 if (!active) {
                     return;
                 }
 
                 setClients(nextClients);
+                setProjects(nextProjects);
                 setTasks(nextTasks);
                 setApiErrorMessage("");
             } catch (error) {
@@ -466,11 +509,19 @@ export default function TimeTrackingPage({
         setSelectedEntryId(entryId);
     };
 
-    const createDraftFromEntry = (entry) => ({
-        ...entry,
-        hours: entry.hours === 0 ? "" : String(entry.hours),
-        comment: entry.comment ?? ""
-    });
+    const createDraftFromEntry = (entry) => {
+        const selectedTask = tasks.find(task => sameId(task.id, entry.taskId));
+        const projectId = entry.projectId ?? selectedTask?.projectId ?? null;
+        const selectedProject = projects.find(project => sameId(project.id, projectId));
+
+        return {
+            ...entry,
+            projectId,
+            projectName: entry.projectName ?? getProjectLabel(selectedProject),
+            hours: entry.hours === 0 ? "" : String(entry.hours),
+            comment: entry.comment ?? ""
+        };
+    };
 
     const openEntryEditor = (mode, entry) => {
         setEntryEditorMode(mode);
@@ -506,21 +557,38 @@ export default function TimeTrackingPage({
                 setDraftEntry(current => (current ? {
                     ...current,
                     organizationId: null,
-                    organizationName: ""
+                    organizationName: "",
+                    clientId: null,
+                    clientName: "",
+                    projectId: null,
+                    projectName: "",
+                    taskId: null,
+                    taskName: ""
                 } : current));
                 return;
             }
 
             const organizationId = toOptionalNumber(value);
-            const selectedOrganization = organizations.find(organization => sameId(organization.id, organizationId));
+            const selectedOrganization = entryOrganizations.find(organization => sameId(organization.id, organizationId));
 
             setDraftEntry(current => {
                 if (!current) {
                     return current;
                 }
 
-                const currentClient = clients.find(client => sameId(client.id, current.clientId));
+                const currentClient = entryClients.find(client => sameId(client.id, current.clientId));
                 const keepClient = currentClient && sameId(currentClient.organizationId, organizationId);
+                const currentProject = projects.find(project => sameId(project.id, current.projectId));
+                const keepProject = keepClient
+                    && currentProject
+                    && sameId(currentProject.organizationId, organizationId)
+                    && sameId(currentProject.clientId, current.clientId);
+                const currentTask = tasks.find(task => sameId(task.id, current.taskId));
+                const keepTask = keepProject
+                    && currentTask
+                    && sameId(currentTask.organizationId, organizationId)
+                    && sameId(currentTask.clientId, current.clientId)
+                    && sameId(currentTask.projectId, current.projectId);
 
                 return {
                     ...current,
@@ -528,8 +596,10 @@ export default function TimeTrackingPage({
                     organizationName: selectedOrganization?.shortName ?? "",
                     clientId: keepClient ? current.clientId : null,
                     clientName: keepClient ? current.clientName : "",
-                    taskId: keepClient ? current.taskId : null,
-                    taskName: keepClient ? current.taskName : ""
+                    projectId: keepProject ? current.projectId : null,
+                    projectName: keepProject ? current.projectName : "",
+                    taskId: keepTask ? current.taskId : null,
+                    taskName: keepTask ? current.taskName : ""
                 };
             });
             return;
@@ -540,22 +610,70 @@ export default function TimeTrackingPage({
                 setDraftEntry(current => (current ? {
                     ...current,
                     clientId: null,
-                    clientName: ""
+                    clientName: "",
+                    projectId: null,
+                    projectName: "",
+                    taskId: null,
+                    taskName: ""
                 } : current));
                 return;
             }
 
             const clientId = toOptionalNumber(value);
-            const selectedClient = clients.find(client => sameId(client.id, clientId));
+            const selectedClient = entryClients.find(client => sameId(client.id, clientId));
+            const clientProjects = projects.filter(project =>
+                sameId(project.organizationId, selectedClient?.organizationId)
+                && sameId(project.clientId, selectedClient?.id)
+            );
+            const openClientProjects = clientProjects.filter(project => !project.completed);
+            const autoSelectedProject = openClientProjects.length === 1 ? openClientProjects[0] : null;
 
             setDraftEntry(current => (current ? {
                 ...current,
                 organizationId: selectedClient?.organizationId ?? current.organizationId ?? null,
                 clientId: selectedClient?.id ?? null,
                 clientName: selectedClient?.name ?? "",
+                projectId: autoSelectedProject?.id ?? null,
+                projectName: getProjectLabel(autoSelectedProject),
                 taskId: null,
                 taskName: ""
             } : current));
+            return;
+        }
+
+        if (field === "project") {
+            if (value === "") {
+                setDraftEntry(current => (current ? {
+                    ...current,
+                    projectId: null,
+                    projectName: "",
+                    taskId: null,
+                    taskName: ""
+                } : current));
+                return;
+            }
+
+            const projectId = toOptionalNumber(value);
+            const selectedProject = projects.find(project => sameId(project.id, projectId));
+
+            setDraftEntry(current => {
+                if (!current) {
+                    return current;
+                }
+
+                const currentTask = tasks.find(task => sameId(task.id, current.taskId));
+                const keepTask = currentTask && sameId(currentTask.projectId, selectedProject?.id);
+
+                return {
+                    ...current,
+                    organizationId: selectedProject?.organizationId ?? current.organizationId,
+                    clientId: selectedProject?.clientId ?? current.clientId,
+                    projectId: selectedProject?.id ?? null,
+                    projectName: getProjectLabel(selectedProject),
+                    taskId: keepTask ? current.taskId : null,
+                    taskName: keepTask ? current.taskName : ""
+                };
+            });
             return;
         }
 
@@ -570,11 +688,14 @@ export default function TimeTrackingPage({
             }
 
             const taskId = toOptionalNumber(value);
-            const selectedTask = tasks.find(task => sameId(task.id, taskId));
+            const selectedTask = entryTasks.find(task => sameId(task.id, taskId));
 
             setDraftEntry(current => (current ? {
                 ...current,
                 organizationId: selectedTask?.organizationId ?? current.organizationId,
+                clientId: selectedTask?.clientId ?? current.clientId,
+                projectId: selectedTask?.projectId ?? current.projectId,
+                projectName: getProjectLabel(projects.find(project => sameId(project.id, selectedTask?.projectId))),
                 taskId: selectedTask?.id ?? null,
                 taskName: selectedTask?.name ?? ""
             } : current));
@@ -582,14 +703,18 @@ export default function TimeTrackingPage({
     };
 
     const handleAddEntry = () => {
-        const currentOrganization = organizations.find(organization => sameId(organization.id, currentOrganizationId));
-        const nextEntry = createLocalWorklogEntry(selectedDate, localIdSeed, currentOrganizationId);
+        const nextOrganizationId = availableOrganizations.some(organization => sameId(organization.id, currentOrganizationId))
+            ? currentOrganizationId
+            : availableOrganizations[0]?.id ?? null;
+        const currentOrganization = organizations.find(organization => sameId(organization.id, nextOrganizationId));
+        const nextEntry = createLocalWorklogEntry(selectedDate, localIdSeed, nextOrganizationId);
 
         openEntryEditor("add", {
             ...nextEntry,
-            organizationId: currentOrganizationId,
+            organizationId: nextOrganizationId,
             organizationName: currentOrganization?.shortName ?? "",
             clientName: "",
+            projectName: "",
             hours: "",
             comment: "",
             modified: false
@@ -666,6 +791,10 @@ export default function TimeTrackingPage({
             issues.push(`${rowLabel}: Client is required.`);
         }
 
+        if (entry.projectId == null) {
+            issues.push(`${rowLabel}: Project is required.`);
+        }
+
         if (entry.taskId == null) {
             issues.push(`${rowLabel}: Task is required.`);
         }
@@ -675,6 +804,19 @@ export default function TimeTrackingPage({
             issues.push(`${rowLabel}: Selected client was not found.`);
         } else if (selectedClient && !sameId(selectedClient.organizationId, entry.organizationId)) {
             issues.push(`${rowLabel}: Client does not belong to the selected organization.`);
+        }
+
+        const selectedProject = projects.find(project => sameId(project.id, entry.projectId));
+        if (entry.projectId != null && !selectedProject) {
+            issues.push(`${rowLabel}: Selected project was not found.`);
+        } else if (selectedProject) {
+            if (!sameId(selectedProject.organizationId, entry.organizationId)) {
+                issues.push(`${rowLabel}: Project does not belong to the selected organization.`);
+            }
+
+            if (!sameId(selectedProject.clientId, entry.clientId)) {
+                issues.push(`${rowLabel}: Project does not belong to the selected client.`);
+            }
         }
 
         const selectedTask = tasks.find(task => sameId(task.id, entry.taskId));
@@ -687,6 +829,10 @@ export default function TimeTrackingPage({
 
             if (!sameId(selectedTask.clientId, entry.clientId)) {
                 issues.push(`${rowLabel}: Task does not belong to the selected client.`);
+            }
+
+            if (!sameId(selectedTask.projectId, entry.projectId)) {
+                issues.push(`${rowLabel}: Task does not belong to the selected project.`);
             }
         }
 
@@ -782,6 +928,32 @@ export default function TimeTrackingPage({
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [deleteConfirmOpen, entryEditorOpen, validationDialogOpen]);
+
+    const entryOrganizations = organizations;
+    const entryClients = draftEntry
+        ? clients.filter(client =>
+            draftEntry.organizationId == null || sameId(client.organizationId, draftEntry.organizationId)
+        )
+        : [];
+    const entryProjects = draftEntry
+        ? projects.filter(project =>
+            sameId(project.id, draftEntry.projectId)
+            || (
+                (draftEntry.organizationId == null || sameId(project.organizationId, draftEntry.organizationId))
+                && (draftEntry.clientId == null || sameId(project.clientId, draftEntry.clientId))
+            )
+        )
+        : projects;
+    const entryTasks = draftEntry
+        ? tasks.filter(task =>
+            sameId(task.id, draftEntry.taskId)
+            || (
+                (draftEntry.organizationId == null || sameId(task.organizationId, draftEntry.organizationId))
+                && (draftEntry.clientId == null || sameId(task.clientId, draftEntry.clientId))
+                && (draftEntry.projectId == null || sameId(task.projectId, draftEntry.projectId))
+            )
+        )
+        : tasks;
 
     return (
         <div className="tracking-main tracking-time-tracking-main">
@@ -885,9 +1057,10 @@ export default function TimeTrackingPage({
                 <WorklogEntryModal
                     mode={entryEditorMode}
                     draftEntry={draftEntry}
-                    organizations={organizations}
-                    clients={clients}
-                    tasks={tasks}
+                    organizations={entryOrganizations}
+                    clients={entryClients}
+                    projects={entryProjects}
+                    tasks={entryTasks}
                     onChange={handleDraftEntryChange}
                     onSave={saveEditingEntry}
                     onCancel={cancelEntryEdit}

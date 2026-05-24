@@ -17,7 +17,6 @@ import com.kzhastkou.devproductivityplatform.repository.SoftwareProductRepositor
 import com.kzhastkou.devproductivityplatform.repository.TaskRepository;
 import com.kzhastkou.devproductivityplatform.repository.TimeEntryRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,9 +39,9 @@ public class TaskService {
     private final TimeEntryRepository timeEntryRepository;
 
     @Transactional(readOnly = true)
-    public List<TaskResponse> findAll() {
-        List<Task> tasks = taskRepository.findAll(Sort.by(Sort.Direction.ASC, "id"));
-        Map<Long, Double> actualHoursByTaskId = loadActualHoursByTaskId();
+    public List<TaskResponse> findAll(Long userId) {
+        List<Task> tasks = taskRepository.findByDeveloperIdOrderByIdAsc(userId);
+        Map<Long, Double> actualHoursByTaskId = loadActualHoursByTaskId(userId);
 
         return tasks.stream()
                 .map(task -> toResponse(task, actualHoursByTaskId))
@@ -50,9 +49,9 @@ public class TaskService {
     }
 
     @Transactional(readOnly = true)
-    public TaskResponse findById(Long id) {
-        Task task = findEntity(id);
-        Map<Long, Double> actualHoursByTaskId = loadActualHoursByTaskId();
+    public TaskResponse findById(Long id, Long userId) {
+        Task task = findEntity(id, userId);
+        Map<Long, Double> actualHoursByTaskId = loadActualHoursByTaskId(userId);
 
         return toResponse(task, actualHoursByTaskId);
     }
@@ -72,50 +71,48 @@ public class TaskService {
     public TaskResponse create(TaskRequest request, Long userId) {
         Developer developer = resolveDeveloper(userId);
         Task task = new Task();
-        applyRequest(task, request, developer, true);
+        applyRequest(task, request, developer, true, userId);
         return toResponse(taskRepository.save(task), Map.of());
     }
 
     @Transactional
     public TaskResponse update(Long id, TaskRequest request, Long userId) {
-        Task task = findEntity(id);
-        resolveDeveloper(userId);
-        applyRequest(task, request, task.getDeveloper(), false);
-        return toResponse(taskRepository.save(task), loadActualHoursByTaskId());
+        Task task = findEntity(id, userId);
+        applyRequest(task, request, task.getDeveloper(), false, userId);
+        return toResponse(taskRepository.save(task), loadActualHoursByTaskId(userId));
     }
 
     @Transactional
-    public void delete(Long id) {
-        validateCanDelete(id);
+    public void delete(Long id, Long userId) {
+        validateCanDelete(id, userId);
 
         taskRepository.deleteById(id);
     }
 
     @Transactional(readOnly = true)
-    public void validateCanDelete(Long id) {
-        findEntity(id);
+    public void validateCanDelete(Long id, Long userId) {
+        findEntity(id, userId);
 
         if (timeEntryRepository.existsByTaskId(id)) {
             throw new RuntimeException("Task cannot be deleted because worklog entries exist.");
         }
     }
 
-    private Task findEntity(Long id) {
-        return taskRepository.findById(id)
+    private Task findEntity(Long id, Long userId) {
+        return taskRepository.findByIdAndDeveloperId(id, userId)
                 .orElseThrow(() -> new NotFoundException("Task not found"));
     }
 
     private Developer resolveDeveloper(Long userId) {
         return developerRepository.findById(userId)
-                .orElseGet(() -> developerRepository.findFirstByOrderByIdAsc()
-                        .orElseThrow(() -> new NotFoundException("Developer not found")));
+                .orElseThrow(() -> new NotFoundException("Developer not found"));
     }
 
-    private void applyRequest(Task task, TaskRequest request, Developer developer, boolean isCreate) {
-        Organization organization = resolveOrganization(request.getOrganizationId());
-        Client client = resolveClient(request.getClientId());
-        Project project = resolveProject(request.getProjectId());
-        SoftwareProduct softwareProduct = resolveSoftwareProduct(request.getSoftwareProductId());
+    private void applyRequest(Task task, TaskRequest request, Developer developer, boolean isCreate, Long developerId) {
+        Organization organization = resolveOrganization(request.getOrganizationId(), developerId);
+        Client client = resolveClient(request.getClientId(), developerId);
+        Project project = resolveProject(request.getProjectId(), developerId);
+        SoftwareProduct softwareProduct = resolveSoftwareProduct(request.getSoftwareProductId(), developerId);
 
         validateHierarchy(organization, client, project);
 
@@ -138,23 +135,23 @@ public class TaskService {
         }
     }
 
-    private Organization resolveOrganization(Long organizationId) {
-        return organizationRepository.findById(organizationId)
+    private Organization resolveOrganization(Long organizationId, Long developerId) {
+        return organizationRepository.findByIdAndDeveloperId(organizationId, developerId)
                 .orElseThrow(() -> new NotFoundException("Organization not found"));
     }
 
-    private Client resolveClient(Long clientId) {
-        return clientRepository.findById(clientId)
+    private Client resolveClient(Long clientId, Long developerId) {
+        return clientRepository.findByIdAndDeveloperId(clientId, developerId)
                 .orElseThrow(() -> new NotFoundException("Client not found"));
     }
 
-    private Project resolveProject(Long projectId) {
-        return projectRepository.findById(projectId)
+    private Project resolveProject(Long projectId, Long developerId) {
+        return projectRepository.findByIdAndDeveloperId(projectId, developerId)
                 .orElseThrow(() -> new NotFoundException("Project not found"));
     }
 
-    private SoftwareProduct resolveSoftwareProduct(Long softwareProductId) {
-        return softwareProductRepository.findById(softwareProductId)
+    private SoftwareProduct resolveSoftwareProduct(Long softwareProductId, Long developerId) {
+        return softwareProductRepository.findByIdAndDeveloperId(softwareProductId, developerId)
                 .orElseThrow(() -> new NotFoundException("Software Product not found"));
     }
 
@@ -173,16 +170,20 @@ public class TaskService {
     }
 
     private Map<Long, Double> loadActualHoursByTaskId() {
-        return timeEntryRepository.sumHoursByTask()
-                .stream()
-                .collect(Collectors.toMap(
-                        TimeEntryRepository.TaskHoursTotal::getTaskId,
-                        total -> total.getActualHours() == null ? 0.0 : total.getActualHours(),
-                        (left, right) -> left
-                ));
+        return loadActualHoursByTaskId(null);
     }
 
     private Map<Long, Double> loadActualHoursByTaskId(Long developerId) {
+        if (developerId == null) {
+            return timeEntryRepository.sumHoursByTask()
+                    .stream()
+                    .collect(Collectors.toMap(
+                            TimeEntryRepository.TaskHoursTotal::getTaskId,
+                            total -> total.getActualHours() == null ? 0.0 : total.getActualHours(),
+                            (left, right) -> left
+                    ));
+        }
+
         return timeEntryRepository.sumHoursByTaskForDeveloper(developerId)
                 .stream()
                 .collect(Collectors.toMap(
