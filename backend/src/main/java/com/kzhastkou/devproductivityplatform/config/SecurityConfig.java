@@ -30,6 +30,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/time-entries/**").hasAnyRole("USER", "ADMIN")
                         .requestMatchers("/api/user-settings/**").hasAnyRole("USER", "ADMIN")
                         .requestMatchers("/api/reports/**").hasAnyRole("USER", "ADMIN")
+                        .requestMatchers("/api/administration/**").hasAnyRole("USER", "ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter,
