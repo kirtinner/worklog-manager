@@ -229,6 +229,7 @@ public class ExcelImportService {
             item.organizationCode = row.value("organization_code");
             item.clientCode = row.value("client_code");
             item.name = row.value("name");
+            item.description = defaultString(row.value("project_description"), row.value("description"));
             item.completed = parseBoolean(row, "Projects", "completed", parsed, true);
             validateRequired(row, item, parsed);
             parsed.projects.add(item);
@@ -471,6 +472,7 @@ public class ExcelImportService {
                     .client(client)
                     .shortName(row.name)
                     .fullName(row.name)
+                    .description(row.description)
                     .completed(Boolean.TRUE.equals(row.completed))
                     .build());
             projects.put(row.code, project);
@@ -908,6 +910,7 @@ public class ExcelImportService {
         private String organizationCode;
         private String clientCode;
         private String name;
+        private String description;
         private Boolean completed;
 
         private ProjectRow(int rowNumber) {

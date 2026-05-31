@@ -14,6 +14,7 @@ function createProjectDraft(organizationId, clientId) {
         clientId,
         shortName: "",
         fullName: "",
+        description: "",
         completed: false
     };
 }
@@ -800,6 +801,15 @@ export default function ProjectsPage({
                                         type="text"
                                         value={draftProject.fullName ?? ""}
                                         onChange={event => handleDraftChange("fullName", event.target.value)}
+                                    />
+                                </label>
+
+                                <label className="tracking-modal-field">
+                                    <span>Project Description</span>
+                                    <textarea
+                                        rows="4"
+                                        value={draftProject.description ?? ""}
+                                        onChange={event => handleDraftChange("description", event.target.value)}
                                     />
                                 </label>
                             </div>
