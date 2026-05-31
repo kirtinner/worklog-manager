@@ -14,14 +14,11 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ExcelImportValidationResult {
+public class ExcelImportSheetSchema {
 
-    private ExcelImportStatus status;
-    private ExcelImportCounts counts;
-    private ExcelImportCounts validRowsCount;
-    private int errorRowsCount;
+    private String sheetName;
     @Builder.Default
-    private List<ExcelImportIssue> errors = new ArrayList<>();
+    private List<String> requiredColumns = new ArrayList<>();
     @Builder.Default
-    private List<ExcelImportIssue> warnings = new ArrayList<>();
+    private List<String> optionalColumns = new ArrayList<>();
 }

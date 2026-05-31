@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ExcelImportServiceTest {
 
     private final ExcelImportService service = new ExcelImportService(
-            null, null, null, null, null, null, null, null
+            null, null, null, null, null, null, null, null, null
     );
 
     @Test
@@ -30,7 +30,7 @@ class ExcelImportServiceTest {
                 1L
         );
 
-        assertThat(result.getStatus()).isEqualTo(ExcelImportStatus.INVALID_NO_IMPORTABLE_DATA);
+        assertThat(result.getStatus()).isEqualTo(ExcelImportStatus.INVALID);
         assertThat(result.getErrors()).isNotEmpty();
     }
 
@@ -38,7 +38,7 @@ class ExcelImportServiceTest {
     void missingSheetIsRejected() throws IOException {
         ExcelImportValidationResult result = service.validate(workbookFile(workbookWithout("Tasks")), 1L);
 
-        assertThat(result.getStatus()).isEqualTo(ExcelImportStatus.INVALID_NO_IMPORTABLE_DATA);
+        assertThat(result.getStatus()).isEqualTo(ExcelImportStatus.INVALID);
         assertThat(result.getErrors()).anyMatch(error -> "Tasks".equals(error.getSheet()));
     }
 
@@ -49,31 +49,86 @@ class ExcelImportServiceTest {
 
         ExcelImportValidationResult result = service.validate(workbookFile(workbook(override, true, false, false)), 1L);
 
-        assertThat(result.getStatus()).isEqualTo(ExcelImportStatus.INVALID_NO_IMPORTABLE_DATA);
+        assertThat(result.getStatus()).isEqualTo(ExcelImportStatus.INVALID);
         assertThat(result.getErrors()).anyMatch(error ->
                 "Clients".equals(error.getSheet()) && "short_name".equals(error.getField())
         );
     }
 
     @Test
-    void duplicateCodeReturnsPartialValidation() throws IOException {
+    void duplicateCodeReturnsInvalidValidation() throws IOException {
         Workbook workbook = workbook(headers(), true, false, false);
         appendRow(workbook.getSheet("Organizations"), "ORG1", "Org Duplicate", "Org Duplicate");
 
         ExcelImportValidationResult result = service.validate(workbookFile(workbook), 1L);
 
-        assertThat(result.getStatus()).isEqualTo(ExcelImportStatus.PARTIALLY_VALID);
+        assertThat(result.getStatus()).isEqualTo(ExcelImportStatus.INVALID);
         assertThat(result.getErrors()).anyMatch(error -> error.getMessage().contains("Duplicate"));
     }
 
     @Test
-    void brokenReferenceReturnsPartialValidation() throws IOException {
+    void duplicateClientShortNameReturnsInvalidValidation() throws IOException {
+        Workbook workbook = workbook(headers(), true, false, false);
+        appendRow(workbook.getSheet("Clients"), "CLIENT2", "ORG1", "Client", "Client Full 2");
+
+        ExcelImportValidationResult result = service.validate(workbookFile(workbook), 1L);
+
+        assertThat(result.getStatus()).isEqualTo(ExcelImportStatus.INVALID);
+        assertThat(result.getErrors()).anyMatch(error ->
+                "Clients".equals(error.getSheet())
+                        && "short_name".equals(error.getField())
+                        && error.getMessage().contains("Duplicate client short_name 'Client'.")
+        );
+    }
+
+    @Test
+    void duplicateProjectShortNameForSameOrganizationAndClientReturnsInvalidValidation() throws IOException {
+        Workbook workbook = workbook(headers(), true, false, false);
+        appendRow(workbook.getSheet("Projects"), "PROJECT2", "ORG1", "CLIENT1", "Project", "Project Full 2", "", "false");
+
+        ExcelImportValidationResult result = service.validate(workbookFile(workbook), 1L);
+
+        assertThat(result.getStatus()).isEqualTo(ExcelImportStatus.INVALID);
+        assertThat(result.getErrors()).anyMatch(error ->
+                "Projects".equals(error.getSheet())
+                        && "short_name".equals(error.getField())
+                        && error.getMessage().contains("Duplicate project short_name 'Project'")
+        );
+    }
+
+    @Test
+    void duplicateProjectShortNameForDifferentClientsIsAllowed() throws IOException {
+        Workbook workbook = workbook(headers(), true, false, false);
+        appendRow(workbook.getSheet("Clients"), "CLIENT2", "ORG1", "Client 2", "Client Full 2");
+        appendRow(workbook.getSheet("Projects"), "PROJECT2", "ORG1", "CLIENT2", "Project", "Project Full 2", "", "false");
+
+        ExcelImportValidationResult result = service.validate(workbookFile(workbook), 1L);
+
+        assertThat(result.getStatus()).isEqualTo(ExcelImportStatus.ALL_VALID);
+        assertThat(result.getErrors()).isEmpty();
+    }
+
+    @Test
+    void duplicateProjectShortNameForDifferentOrganizationsIsAllowed() throws IOException {
+        Workbook workbook = workbook(headers(), true, false, false);
+        appendRow(workbook.getSheet("Organizations"), "ORG2", "Org 2", "Organization 2");
+        appendRow(workbook.getSheet("Clients"), "CLIENT2", "ORG2", "Client 2", "Client Full 2");
+        appendRow(workbook.getSheet("Projects"), "PROJECT2", "ORG2", "CLIENT2", "Project", "Project Full 2", "", "false");
+
+        ExcelImportValidationResult result = service.validate(workbookFile(workbook), 1L);
+
+        assertThat(result.getStatus()).isEqualTo(ExcelImportStatus.ALL_VALID);
+        assertThat(result.getErrors()).isEmpty();
+    }
+
+    @Test
+    void brokenReferenceReturnsInvalidValidation() throws IOException {
         Workbook workbook = workbook(headers(), true, false, false);
         appendRow(workbook.getSheet("TimeEntries"), "MISSING_TASK", "2026-05-24", "1", "Broken");
 
         ExcelImportValidationResult result = service.validate(workbookFile(workbook), 1L);
 
-        assertThat(result.getStatus()).isEqualTo(ExcelImportStatus.PARTIALLY_VALID);
+        assertThat(result.getStatus()).isEqualTo(ExcelImportStatus.INVALID);
         assertThat(result.getErrors()).anyMatch(error -> "task_code".equals(error.getField()));
     }
 
@@ -87,14 +142,13 @@ class ExcelImportServiceTest {
     }
 
     @Test
-    void partialWorkbookKeepsValidRowsImportable() throws IOException {
+    void invalidWorkbookDoesNotEnablePartialImport() throws IOException {
         Workbook workbook = workbook(headers(), true, false, false);
         appendRow(workbook.getSheet("Tasks"), "TASK_BAD", "ORG1", "CLIENT1", "PROJECT1", "PRODUCT1", "", "Broken Task", "", "1", "false", "");
 
         ExcelImportValidationResult result = service.validate(workbookFile(workbook), 1L);
 
-        assertThat(result.getStatus()).isEqualTo(ExcelImportStatus.PARTIALLY_VALID);
-        assertThat(result.getValidRowsCount().getTasks()).isEqualTo(1);
+        assertThat(result.getStatus()).isEqualTo(ExcelImportStatus.INVALID);
         assertThat(result.getErrors()).anyMatch(error -> "task_number".equals(error.getField()));
     }
 
@@ -113,10 +167,9 @@ class ExcelImportServiceTest {
         headers.forEach((sheet, columns) -> createSheet(workbook, sheet, columns));
 
         if (withData) {
-            appendRow(workbook.getSheet("UserSettings"), "8", "ORG1", "");
             appendRow(workbook.getSheet("Organizations"), "ORG1", "Org", "Organization");
             appendRow(workbook.getSheet("Clients"), "CLIENT1", "ORG1", "Client", "Client Full");
-            appendRow(workbook.getSheet("Projects"), "PROJECT1", "ORG1", "CLIENT1", "Project", "false");
+            appendRow(workbook.getSheet("Projects"), "PROJECT1", "ORG1", "CLIENT1", "Project", "Project Full", "Project description", "false");
             appendRow(workbook.getSheet("SoftwareProducts"), "PRODUCT1", "Product", "Product Full");
             appendRow(workbook.getSheet("Tasks"), "TASK1", "ORG1", "CLIENT1", "PROJECT1", "PRODUCT1", "T-1", "Task", "", "2", "false", "");
             appendRow(workbook.getSheet("TimeEntries"), brokenReference ? "UNKNOWN" : "TASK1", "2026-05-24", "1", "Work");
@@ -158,10 +211,9 @@ class ExcelImportServiceTest {
 
     private Map<String, List<String>> headers() {
         Map<String, List<String>> headers = new LinkedHashMap<>();
-        headers.put("UserSettings", List.of("daily_hours_limit", "current_organization_code", "reports_save_directory"));
         headers.put("Organizations", List.of("code", "short_name", "full_name"));
         headers.put("Clients", List.of("code", "organization_code", "short_name", "full_name"));
-        headers.put("Projects", List.of("code", "organization_code", "client_code", "name", "completed"));
+        headers.put("Projects", List.of("code", "organization_code", "client_code", "short_name", "full_name", "description", "completed"));
         headers.put("SoftwareProducts", List.of("code", "short_name", "full_name"));
         headers.put("Tasks", List.of("code", "organization_code", "client_code", "project_code", "software_product_code", "task_number", "name", "comment", "estimated_hours", "completed", "task_link"));
         headers.put("TimeEntries", List.of("task_code", "entry_date", "hours", "comment"));

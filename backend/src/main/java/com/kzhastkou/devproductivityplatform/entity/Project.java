@@ -6,7 +6,10 @@ import lombok.*;
 @Entity
 @Table(
         name = "projects",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"developer_id", "short_name"})
+        uniqueConstraints = @UniqueConstraint(
+                name = "ux_projects_dev_org_client_short_name",
+                columnNames = {"developer_id", "organization_id", "client_id", "short_name"}
+        )
 )
 @Getter
 @Setter
@@ -24,7 +27,7 @@ public class Project {
 
     private String fullName;
 
-    @Column(length = 2000)
+    @Column(columnDefinition = "TEXT")
     private String description;
 
     @Builder.Default

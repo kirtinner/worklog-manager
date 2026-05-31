@@ -26,7 +26,7 @@ public class TimeEntry {
     @Column(nullable = false)
     private Double hours;
 
-    @Column(length = 2000)
+    @Column(columnDefinition = "TEXT")
     private String comment;
 
     @ManyToOne(fetch = FetchType.LAZY)

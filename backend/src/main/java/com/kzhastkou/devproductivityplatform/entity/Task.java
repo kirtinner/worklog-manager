@@ -28,16 +28,16 @@ public class Task {
     @Column(nullable = false)
     private Double estimatedHours;
 
-    @Column(length = 2000)
+    @Column(columnDefinition = "TEXT")
     private String comment;
 
     @Column(length = 1000)
     private String taskLink;
 
-    @Column(length = 2000)
+    @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(length = 5000)
+    @Column(columnDefinition = "TEXT")
     private String implementationDetails;
 
     private Boolean completed;

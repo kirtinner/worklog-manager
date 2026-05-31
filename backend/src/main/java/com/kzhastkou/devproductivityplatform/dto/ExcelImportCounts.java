@@ -13,7 +13,6 @@ import lombok.Setter;
 @Builder
 public class ExcelImportCounts {
 
-    private int userSettings;
     private int organizations;
     private int clients;
     private int projects;
@@ -22,6 +21,6 @@ public class ExcelImportCounts {
     private int timeEntries;
 
     public int total() {
-        return userSettings + organizations + clients + projects + softwareProducts + tasks + timeEntries;
+        return organizations + clients + projects + softwareProducts + tasks + timeEntries;
     }
 }

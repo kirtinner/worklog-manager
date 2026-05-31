@@ -16,6 +16,11 @@ export async function validateImportFile(file) {
     return response.data;
 }
 
+export async function getImportSchema() {
+    const response = await api.get("/import/schema");
+    return response.data;
+}
+
 export async function importValidatedFile(file) {
     const response = await api.post("/administration/import", createImportFormData(file), {
         headers: {

@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { importValidatedFile, validateImportFile } from "../services/administrationService";
+import { getImportSchema, importValidatedFile, validateImportFile } from "../services/administrationService";
 
 function getFileName(file) {
     return file?.name ?? "No file selected";
@@ -27,14 +27,9 @@ function formatIssue(issue) {
     return location ? `${location}: ${issue.message}` : issue.message;
 }
 
-function ValidationSummary({ validation }) {
-    if (!validation) {
-        return null;
-    }
-
-    const counts = validation.validRowsCount ?? {};
+function ImportCountsSummary({ validation }) {
+    const counts = validation?.counts ?? validation?.validRowsCount ?? {};
     const items = [
-        ["User Settings", counts.userSettings],
         ["Organizations", counts.organizations],
         ["Clients", counts.clients],
         ["Projects", counts.projects],
@@ -44,47 +39,160 @@ function ValidationSummary({ validation }) {
     ];
 
     return (
-        <div className="administration-validation">
-            <div className="tracking-status-banner administration-status-banner">
-                Validation status: {validation.status}
-            </div>
+        <div className="administration-validation-summary">
+            {items.map(([label, value]) => (
+                <div key={label} className="administration-validation-summary-item">
+                    <span>{label}:</span>
+                    <strong>{Number(value ?? 0)}</strong>
+                </div>
+            ))}
+        </div>
+    );
+}
 
-            <div className="administration-validation-summary">
-                {items.map(([label, value]) => (
-                    <div key={label} className="administration-validation-summary-item">
-                        <span>{label}</span>
-                        <strong>{Number(value ?? 0)}</strong>
+function ValidationFailureDialog({ validation, onClose }) {
+    const errors = validation?.errors ?? [];
+
+    return (
+        <div className="tracking-modal-overlay" role="presentation">
+            <div
+                className="tracking-modal tracking-modal-confirm administration-result-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="administration-validation-failed-title"
+            >
+                <div className="tracking-modal-header">
+                    <h3 id="administration-validation-failed-title">Validation failed</h3>
+                </div>
+                <div className="tracking-modal-body administration-result-body">
+                    <p className="tracking-modal-text">
+                        Validation failed. Import was stopped. Fix the Excel file and try again.
+                    </p>
+                    <div className="tracking-status-banner administration-status-banner">
+                        Validation status: {validation?.status ?? "INVALID"}
                     </div>
-                ))}
+                    <div className="administration-validation-count">
+                        Rows with errors: {Number(validation?.errorRowsCount ?? 0)}
+                    </div>
+                    {errors.length > 0 ? (
+                        <div className="administration-issues">
+                            <h4>Errors</h4>
+                            <ul className="tracking-modal-list">
+                                {errors.map((issue, index) => (
+                                    <li key={`validation-error-${index}`}>{formatIssue(issue)}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    ) : null}
+                </div>
+                <div className="tracking-modal-actions">
+                    <button type="button" className="tracking-modal-button" onClick={onClose}>
+                        OK
+                    </button>
+                </div>
             </div>
+        </div>
+    );
+}
 
-            {validation.errorRowsCount > 0 ? (
-                <div className="administration-validation-count">
-                    Rows with errors: {validation.errorRowsCount}
+function ImportSuccessDialog({ onClose }) {
+    return (
+        <div className="tracking-modal-overlay" role="presentation">
+            <div
+                className="tracking-modal tracking-modal-confirm"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="administration-import-success-title"
+            >
+                <div className="tracking-modal-header">
+                    <h3 id="administration-import-success-title">Import completed</h3>
                 </div>
-            ) : null}
+                <div className="tracking-modal-body">
+                    <p className="tracking-modal-text">Import completed successfully.</p>
+                </div>
+                <div className="tracking-modal-actions">
+                    <button type="button" className="tracking-modal-button" onClick={onClose}>
+                        OK
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
 
-            {validation.errors?.length > 0 ? (
-                <div className="administration-issues">
-                    <h4>Errors</h4>
-                    <ul className="tracking-modal-list">
-                        {validation.errors.map((issue, index) => (
-                            <li key={`error-${index}`}>{formatIssue(issue)}</li>
-                        ))}
-                    </ul>
+function ImportHelpDialog({ schema, loading, error, onClose }) {
+    return (
+        <div className="tracking-modal-overlay" role="presentation">
+            <div
+                className="tracking-modal tracking-modal-confirm administration-help-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="administration-help-title"
+            >
+                <div className="tracking-modal-header">
+                    <h3 id="administration-help-title">Import Information</h3>
                 </div>
-            ) : null}
+                <div className="tracking-modal-body administration-help-body">
+                    {loading ? (
+                        <p className="tracking-modal-text">Loading import requirements...</p>
+                    ) : error ? (
+                        <p className="tracking-modal-text">{error}</p>
+                    ) : (
+                        <>
+                            <section className="administration-help-section">
+                                <h4>Import warning</h4>
+                                <p className="tracking-modal-text">
+                                    {schema?.warning ?? "Import will replace all current data for the current user account."}
+                                </p>
+                                <p className="tracking-modal-text">The following data will be replaced:</p>
+                                <ul className="tracking-modal-list">
+                                    {(schema?.replacedData ?? []).map(item => (
+                                        <li key={item}>{item}</li>
+                                    ))}
+                                </ul>
+                            </section>
 
-            {validation.warnings?.length > 0 ? (
-                <div className="administration-issues">
-                    <h4>Warnings</h4>
-                    <ul className="tracking-modal-list">
-                        {validation.warnings.map((issue, index) => (
-                            <li key={`warning-${index}`}>{formatIssue(issue)}</li>
-                        ))}
-                    </ul>
+                            <section className="administration-help-section">
+                                <h4>Excel file requirements</h4>
+                                <div className="administration-schema-list">
+                                    {(schema?.sheets ?? []).map(sheet => (
+                                        <div key={sheet.sheetName} className="administration-schema-sheet">
+                                            <h5>{sheet.sheetName}</h5>
+                                            <div className="administration-schema-columns">
+                                                <div>
+                                                    <span>Required columns</span>
+                                                    <ul className="tracking-modal-list">
+                                                        {(sheet.requiredColumns ?? []).map(column => (
+                                                            <li key={column}>{column}</li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                                <div>
+                                                    <span>Optional columns</span>
+                                                    {(sheet.optionalColumns ?? []).length > 0 ? (
+                                                        <ul className="tracking-modal-list">
+                                                            {sheet.optionalColumns.map(column => (
+                                                                <li key={column}>{column}</li>
+                                                            ))}
+                                                        </ul>
+                                                    ) : (
+                                                        <p className="tracking-modal-text">None</p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+                        </>
+                    )}
                 </div>
-            ) : null}
+                <div className="tracking-modal-actions">
+                    <button type="button" className="tracking-modal-button" onClick={onClose}>
+                        OK
+                    </button>
+                </div>
+            </div>
         </div>
     );
 }
@@ -93,24 +201,53 @@ export default function AdministrationPage() {
     const [selectedFile, setSelectedFile] = useState(null);
     const [validationResult, setValidationResult] = useState(null);
     const [confirmOpen, setConfirmOpen] = useState(false);
+    const [validationFailureOpen, setValidationFailureOpen] = useState(false);
+    const [successOpen, setSuccessOpen] = useState(false);
+    const [helpOpen, setHelpOpen] = useState(false);
+    const [importSchema, setImportSchema] = useState(null);
+    const [importSchemaLoading, setImportSchemaLoading] = useState(false);
+    const [importSchemaError, setImportSchemaError] = useState("");
     const [message, setMessage] = useState("");
     const [busy, setBusy] = useState(false);
     const fileInputRef = useRef(null);
 
-    const hasValidation = validationResult != null;
-    const canImport = selectedFile
-        && hasValidation
-        && validationResult.status !== "INVALID_NO_IMPORTABLE_DATA"
-        && countTotal(validationResult.validRowsCount) > 0;
+    const canExecuteImport = selectedFile
+        && validationResult?.status === "ALL_VALID"
+        && countTotal(validationResult.counts ?? validationResult.validRowsCount) > 0;
 
     const handleChooseFile = () => {
         fileInputRef.current?.click();
+    };
+
+    const handleOpenHelp = async () => {
+        setHelpOpen(true);
+
+        if (importSchema || importSchemaLoading) {
+            return;
+        }
+
+        setImportSchemaLoading(true);
+        setImportSchemaError("");
+        try {
+            const schema = await getImportSchema();
+            setImportSchema(schema);
+        } catch (error) {
+            setImportSchemaError(getApiErrorMessage(error, "Unable to load import requirements."));
+        } finally {
+            setImportSchemaLoading(false);
+        }
+    };
+
+    const handleCloseHelp = () => {
+        setHelpOpen(false);
     };
 
     const handleFileChange = (event) => {
         const nextFile = event.target.files?.[0] ?? null;
         setSelectedFile(nextFile);
         setValidationResult(null);
+        setValidationFailureOpen(false);
+        setSuccessOpen(false);
         setMessage("");
 
         if (fileInputRef.current) {
@@ -118,7 +255,7 @@ export default function AdministrationPage() {
         }
     };
 
-    const handleValidate = async () => {
+    const handleImportData = async () => {
         if (!selectedFile) {
             return;
         }
@@ -131,12 +268,12 @@ export default function AdministrationPage() {
             const result = await validateImportFile(selectedFile);
             setValidationResult(result);
 
-            if (result.status === "INVALID_NO_IMPORTABLE_DATA") {
-                setMessage("The file contains no valid data to import.");
-            } else if (result.status === "ALL_VALID") {
-                setMessage("All data is valid.");
+            if (result.status === "ALL_VALID") {
+                setMessage("");
+                setConfirmOpen(true);
             } else {
-                setMessage("Some rows contain errors. You can import only valid data.");
+                setMessage("");
+                setValidationFailureOpen(true);
             }
         } catch (error) {
             setMessage(getApiErrorMessage(error, "Unable to validate import file."));
@@ -145,18 +282,20 @@ export default function AdministrationPage() {
         }
     };
 
-    const handleOpenConfirm = () => {
-        if (canImport) {
-            setConfirmOpen(true);
-        }
-    };
-
     const handleCancelImport = () => {
         setConfirmOpen(false);
     };
 
+    const handleCloseValidationFailure = () => {
+        setValidationFailureOpen(false);
+    };
+
+    const handleCloseSuccess = () => {
+        setSuccessOpen(false);
+    };
+
     const handleConfirmImport = async () => {
-        if (!canImport) {
+        if (!canExecuteImport) {
             return;
         }
 
@@ -167,7 +306,13 @@ export default function AdministrationPage() {
         try {
             const result = await importValidatedFile(selectedFile);
             setValidationResult(result.validation);
-            setMessage("Import completed.");
+            if (result.imported) {
+                setMessage("");
+                setSuccessOpen(true);
+            } else {
+                setMessage("");
+                setValidationFailureOpen(true);
+            }
         } catch (error) {
             setMessage(getApiErrorMessage(error, "Unable to import data."));
         } finally {
@@ -175,15 +320,8 @@ export default function AdministrationPage() {
         }
     };
 
-    const confirmTitle = validationResult?.status === "PARTIALLY_VALID"
-        ? "Import Valid Data"
-        : "Import Data";
-    const confirmText = validationResult?.status === "PARTIALLY_VALID"
-        ? "Some rows contain errors. Do you want to import only valid data?"
-        : "All existing data for the current user will be permanently deleted and replaced with data from this Excel file. Do you want to continue?";
-    const confirmButtonText = validationResult?.status === "PARTIALLY_VALID"
-        ? "Import Valid Data"
-        : "Import Data";
+    const confirmTitle = "Import Data";
+    const confirmButtonText = "Import Data";
 
     return (
         <div className="tracking-main organizations-main administration-main">
@@ -201,6 +339,15 @@ export default function AdministrationPage() {
                         <div>
                             <h3>Import Data</h3>
                         </div>
+                        <button
+                            type="button"
+                            className="administration-help-button"
+                            onClick={handleOpenHelp}
+                            title="Import format and requirements"
+                            aria-label="Import format and requirements"
+                        >
+                            ?
+                        </button>
                     </div>
 
                     <div className="tracking-panel-body">
@@ -235,55 +382,41 @@ export default function AdministrationPage() {
                                 <button
                                     type="button"
                                     className="tracking-save-button"
-                                    onClick={handleValidate}
+                                    onClick={handleImportData}
                                     disabled={!selectedFile || busy}
                                 >
-                                    Validate
-                                </button>
-                                <button
-                                    type="button"
-                                    className="tracking-save-button"
-                                    onClick={handleOpenConfirm}
-                                    disabled={!canImport || busy}
-                                >
-                                    {validationResult?.status === "PARTIALLY_VALID" ? "Import Valid Data" : "Import Data"}
+                                    Import Data
                                 </button>
                             </div>
 
                             {message ? (
                                 <div className="tracking-status-banner administration-status-banner">{message}</div>
                             ) : null}
-
-                            <ValidationSummary validation={validationResult} />
                         </div>
                     </div>
                 </section>
 
-                <section className="tracking-panel organizations-panel">
-                    <div className="tracking-panel-header organizations-panel-header">
-                        <div>
-                            <h3>Information</h3>
-                        </div>
-                    </div>
-
-                    <div className="tracking-panel-body">
-                        <div className="administration-info">
-                            <p className="app-placeholder-text administration-info-text">
-                                The import will replace all current data for your user account:
-                            </p>
-                            <ul className="administration-info-list">
-                                <li>Organizations</li>
-                                <li>Clients</li>
-                                <li>Projects</li>
-                                <li>Software Products</li>
-                                <li>Tasks</li>
-                                <li>Time Entries</li>
-                                <li>User Settings</li>
-                            </ul>
-                        </div>
-                    </div>
-                </section>
             </div>
+
+            {validationFailureOpen ? (
+                <ValidationFailureDialog
+                    validation={validationResult}
+                    onClose={handleCloseValidationFailure}
+                />
+            ) : null}
+
+            {successOpen ? (
+                <ImportSuccessDialog onClose={handleCloseSuccess} />
+            ) : null}
+
+            {helpOpen ? (
+                <ImportHelpDialog
+                    schema={importSchema}
+                    loading={importSchemaLoading}
+                    error={importSchemaError}
+                    onClose={handleCloseHelp}
+                />
+            ) : null}
 
             {confirmOpen ? (
                 <div className="tracking-modal-overlay" role="presentation">
@@ -296,8 +429,20 @@ export default function AdministrationPage() {
                         <div className="tracking-modal-header">
                             <h3 id="administration-import-title">{confirmTitle}</h3>
                         </div>
-                        <div className="tracking-modal-body">
-                            <p className="tracking-modal-text">{confirmText}</p>
+                        <div className="tracking-modal-body administration-result-body">
+                            <div className="tracking-status-banner administration-status-banner">
+                                Validation status: {validationResult?.status ?? "ALL_VALID"}
+                            </div>
+                            <p className="tracking-modal-text">
+                                The selected Excel file contains the following data for import:
+                            </p>
+                            <ImportCountsSummary validation={validationResult} />
+                            <div className="administration-import-warning">
+                                <p className="tracking-modal-text">
+                                    All existing data for the current user will be permanently deleted and replaced with data from this Excel file.
+                                </p>
+                                <p className="tracking-modal-text">Do you want to continue?</p>
+                            </div>
                         </div>
                         <div className="tracking-modal-actions">
                             <button

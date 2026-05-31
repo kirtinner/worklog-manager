@@ -3,6 +3,8 @@ package com.kzhastkou.devproductivityplatform.service;
 import com.kzhastkou.devproductivityplatform.dto.ExcelImportCounts;
 import com.kzhastkou.devproductivityplatform.dto.ExcelImportIssue;
 import com.kzhastkou.devproductivityplatform.dto.ExcelImportResult;
+import com.kzhastkou.devproductivityplatform.dto.ExcelImportSchemaResponse;
+import com.kzhastkou.devproductivityplatform.dto.ExcelImportSheetSchema;
 import com.kzhastkou.devproductivityplatform.dto.ExcelImportStatus;
 import com.kzhastkou.devproductivityplatform.dto.ExcelImportValidationResult;
 import com.kzhastkou.devproductivityplatform.entity.Client;
@@ -12,7 +14,6 @@ import com.kzhastkou.devproductivityplatform.entity.Project;
 import com.kzhastkou.devproductivityplatform.entity.SoftwareProduct;
 import com.kzhastkou.devproductivityplatform.entity.Task;
 import com.kzhastkou.devproductivityplatform.entity.TimeEntry;
-import com.kzhastkou.devproductivityplatform.entity.UserSettings;
 import com.kzhastkou.devproductivityplatform.exception.NotFoundException;
 import com.kzhastkou.devproductivityplatform.repository.ClientRepository;
 import com.kzhastkou.devproductivityplatform.repository.DeveloperRepository;
@@ -23,6 +24,7 @@ import com.kzhastkou.devproductivityplatform.repository.TaskRepository;
 import com.kzhastkou.devproductivityplatform.repository.TimeEntryRepository;
 import com.kzhastkou.devproductivityplatform.repository.UserSettingsRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DataFormatter;
@@ -31,8 +33,12 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -49,41 +55,44 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ExcelImportService {
 
-    private static final List<String> REQUIRED_SHEETS = List.of(
-            "UserSettings",
+    private static final List<String> REPLACED_DATA = List.of(
             "Organizations",
             "Clients",
             "Projects",
-            "SoftwareProducts",
+            "Software Products",
             "Tasks",
-            "TimeEntries"
+            "Time Entries"
     );
 
-    private static final Map<String, List<String>> REQUIRED_COLUMNS = Map.of(
-            "UserSettings", List.of("daily_hours_limit", "current_organization_code", "reports_save_directory"),
-            "Organizations", List.of("code", "short_name", "full_name"),
-            "Clients", List.of("code", "organization_code", "short_name", "full_name"),
-            "Projects", List.of("code", "organization_code", "client_code", "name", "completed"),
-            "SoftwareProducts", List.of("code", "short_name", "full_name"),
-            "Tasks", List.of("code", "organization_code", "client_code", "project_code", "software_product_code", "task_number", "name", "comment", "estimated_hours", "completed", "task_link"),
-            "TimeEntries", List.of("task_code", "entry_date", "hours", "comment")
+    private static final List<ExcelImportSheetSchema> SHEET_SCHEMAS = List.of(
+            sheet("Organizations",
+                    List.of("code", "short_name"),
+                    List.of("full_name")),
+            sheet("Clients",
+                    List.of("code", "organization_code", "short_name"),
+                    List.of("full_name")),
+            sheet("Projects",
+                    List.of("code", "organization_code", "client_code", "short_name", "full_name"),
+                    List.of("description", "completed")),
+            sheet("SoftwareProducts",
+                    List.of("code", "short_name"),
+                    List.of("full_name")),
+            sheet("Tasks",
+                    List.of("code", "organization_code", "client_code", "project_code", "software_product_code", "task_number", "name"),
+                    List.of("comment", "description", "implementation_details", "estimated_hours", "completed", "task_link")),
+            sheet("TimeEntries",
+                    List.of("task_code", "entry_date", "hours"),
+                    List.of("comment"))
     );
 
-    private static final Map<String, List<String>> REQUIRED_FIELDS = Map.of(
-            "UserSettings", List.of("daily_hours_limit", "current_organization_code"),
-            "Organizations", List.of("code", "short_name"),
-            "Clients", List.of("code", "organization_code", "short_name"),
-            "Projects", List.of("code", "organization_code", "client_code", "name"),
-            "SoftwareProducts", List.of("code", "short_name"),
-            "Tasks", List.of("code", "organization_code", "client_code", "project_code", "software_product_code", "task_number", "name"),
-            "TimeEntries", List.of("task_code", "entry_date", "hours")
-    );
+    private static final Map<String, ExcelImportSheetSchema> SCHEMA_BY_SHEET = SHEET_SCHEMAS.stream()
+            .collect(LinkedHashMap::new, (map, schema) -> map.put(schema.getSheetName(), schema), LinkedHashMap::putAll);
 
     private final DeveloperRepository developerRepository;
     private final OrganizationRepository organizationRepository;
@@ -93,31 +102,44 @@ public class ExcelImportService {
     private final TaskRepository taskRepository;
     private final TimeEntryRepository timeEntryRepository;
     private final UserSettingsRepository userSettingsRepository;
+    private final PlatformTransactionManager transactionManager;
+
+    public ExcelImportSchemaResponse getSchema() {
+        return ExcelImportSchemaResponse.builder()
+                .warning("Import will replace all current data for the current user account.")
+                .replacedData(REPLACED_DATA)
+                .sheets(SHEET_SCHEMAS)
+                .build();
+    }
 
     @Transactional(readOnly = true)
     public ExcelImportValidationResult validate(MultipartFile file, Long developerId) {
         return parseAndValidate(file).result;
     }
 
-    @Transactional
     public ExcelImportResult importData(MultipartFile file, Long developerId) {
         ParsedWorkbook parsed = parseAndValidate(file);
         ExcelImportValidationResult validation = parsed.result;
 
-        if (validation.getStatus() == ExcelImportStatus.INVALID_NO_IMPORTABLE_DATA) {
-            throw new RuntimeException("The file contains no valid data to import.");
+        if (validation.getStatus() != ExcelImportStatus.ALL_VALID) {
+            return ExcelImportResult.builder()
+                    .imported(false)
+                    .importedRowsCount(ExcelImportCounts.builder().build())
+                    .validation(validation)
+                    .build();
         }
 
-        Developer developer = developerRepository.findById(developerId)
-                .orElseThrow(() -> new NotFoundException("Developer not found"));
+        try {
+            ExcelImportCounts counts = replaceUserData(developerId, parsed);
 
-        ExcelImportCounts counts = replaceUserData(developer, parsed);
-
-        return ExcelImportResult.builder()
-                .imported(true)
-                .importedRowsCount(counts)
-                .validation(validation)
-                .build();
+            return ExcelImportResult.builder()
+                    .imported(true)
+                    .importedRowsCount(counts)
+                    .validation(validation)
+                    .build();
+        } catch (DataIntegrityViolationException error) {
+            return importFailedResult(toUniqueConstraintValidation(error));
+        }
     }
 
     private ParsedWorkbook parseAndValidate(MultipartFile file) {
@@ -158,7 +180,8 @@ public class ExcelImportService {
     }
 
     private void validateSheetsAndColumns(Workbook workbook, ParsedWorkbook parsed) {
-        for (String sheetName : REQUIRED_SHEETS) {
+        for (ExcelImportSheetSchema schema : SHEET_SCHEMAS) {
+            String sheetName = schema.getSheetName();
             Sheet sheet = workbook.getSheet(sheetName);
             if (sheet == null) {
                 parsed.addError(sheetName, null, null, "Required sheet is missing.");
@@ -167,7 +190,7 @@ public class ExcelImportService {
 
             Row headerRow = sheet.getRow(0);
             Map<String, Integer> headers = readHeaders(headerRow);
-            for (String column : REQUIRED_COLUMNS.get(sheetName)) {
+            for (String column : schema.getRequiredColumns()) {
                 if (!headers.containsKey(column)) {
                     parsed.addError(sheetName, 1, column, "Required column is missing.");
                 }
@@ -177,24 +200,12 @@ public class ExcelImportService {
     }
 
     private void readRows(Workbook workbook, ParsedWorkbook parsed) {
-        readUserSettings(workbook.getSheet("UserSettings"), parsed);
         readOrganizations(workbook.getSheet("Organizations"), parsed);
         readClients(workbook.getSheet("Clients"), parsed);
         readProjects(workbook.getSheet("Projects"), parsed);
         readSoftwareProducts(workbook.getSheet("SoftwareProducts"), parsed);
         readTasks(workbook.getSheet("Tasks"), parsed);
         readTimeEntries(workbook.getSheet("TimeEntries"), parsed);
-    }
-
-    private void readUserSettings(Sheet sheet, ParsedWorkbook parsed) {
-        forEachDataRow(sheet, parsed.headers.get("UserSettings"), row -> {
-            UserSettingsRow item = new UserSettingsRow(row.rowNumber);
-            item.dailyHoursLimit = parsePositiveDouble(row, "UserSettings", "daily_hours_limit", parsed, false);
-            item.currentOrganizationCode = row.value("current_organization_code");
-            item.reportsSaveDirectory = row.value("reports_save_directory");
-            validateRequired(row, item, parsed);
-            parsed.userSettings.add(item);
-        });
     }
 
     private void readOrganizations(Sheet sheet, ParsedWorkbook parsed) {
@@ -228,8 +239,9 @@ public class ExcelImportService {
             item.code = row.value("code");
             item.organizationCode = row.value("organization_code");
             item.clientCode = row.value("client_code");
-            item.name = row.value("name");
-            item.description = defaultString(row.value("project_description"), row.value("description"));
+            item.shortName = row.value("short_name");
+            item.fullName = row.value("full_name");
+            item.description = row.value("description");
             item.completed = parseBoolean(row, "Projects", "completed", parsed, true);
             validateRequired(row, item, parsed);
             parsed.projects.add(item);
@@ -260,6 +272,8 @@ public class ExcelImportService {
             item.taskNumber = row.value("task_number");
             item.name = row.value("name");
             item.comment = row.value("comment");
+            item.description = row.value("description");
+            item.implementationDetails = row.value("implementation_details");
             item.estimatedHours = parseNonNegativeDouble(row, "Tasks", "estimated_hours", parsed, true);
             item.completed = parseBoolean(row, "Tasks", "completed", parsed, true);
             item.taskLink = row.value("task_link");
@@ -282,7 +296,7 @@ public class ExcelImportService {
     }
 
     private void validateRequired(SheetRow row, ImportRow item, ParsedWorkbook parsed) {
-        for (String field : REQUIRED_FIELDS.get(item.sheet)) {
+        for (String field : SCHEMA_BY_SHEET.get(item.sheet).getRequiredColumns()) {
             if (isBlank(row.value(field))) {
                 item.valid = false;
                 parsed.addError(item.sheet, item.rowNumber, field, "Required field is empty.");
@@ -293,14 +307,12 @@ public class ExcelImportService {
     private void validateDuplicates(ParsedWorkbook parsed) {
         validateDuplicateCodes(parsed.organizations, "Organizations", "code", parsed);
         validateDuplicateCodes(parsed.clients, "Clients", "code", parsed);
+        validateDuplicateClientShortNames(parsed);
         validateDuplicateCodes(parsed.projects, "Projects", "code", parsed);
+        validateDuplicateProjectShortNames(parsed);
         validateDuplicateCodes(parsed.softwareProducts, "SoftwareProducts", "code", parsed);
         validateDuplicateCodes(parsed.tasks, "Tasks", "code", parsed);
 
-        validateDuplicateValues(parsed.organizations, "Organizations", "short_name", OrganizationRow::shortName, parsed);
-        validateDuplicateValues(parsed.clients, "Clients", "short_name", ClientRow::shortName, parsed);
-        validateDuplicateValues(parsed.projects, "Projects", "name", ProjectRow::name, parsed);
-        validateDuplicateValues(parsed.softwareProducts, "SoftwareProducts", "short_name", SoftwareProductRow::shortName, parsed);
     }
 
     private <T extends CodedRow> void validateDuplicateCodes(List<T> rows, String sheet, String field, ParsedWorkbook parsed) {
@@ -323,14 +335,41 @@ public class ExcelImportService {
         }
     }
 
-    private void validateReferences(ParsedWorkbook parsed) {
-        for (UserSettingsRow row : parsed.userSettings) {
-            OrganizationRow organization = parsed.organizationByCode.get(row.currentOrganizationCode);
-            if (organization == null || !organization.valid) {
-                invalidate(row, parsed, "current_organization_code", "Organization " + safe(row.currentOrganizationCode) + " does not exist or is invalid.");
+    private void validateDuplicateClientShortNames(ParsedWorkbook parsed) {
+        Map<String, ClientRow> seen = new HashMap<>();
+        for (ClientRow row : parsed.clients) {
+            if (isBlank(row.shortName)) {
+                continue;
+            }
+
+            ClientRow previous = seen.putIfAbsent(row.shortName, row);
+            if (previous != null) {
+                row.valid = false;
+                parsed.addError("Clients", row.rowNumber, "short_name", "Duplicate client short_name '" + row.shortName + "'.");
             }
         }
+    }
 
+    private void validateDuplicateProjectShortNames(ParsedWorkbook parsed) {
+        Map<String, ProjectRow> seen = new HashMap<>();
+        for (ProjectRow row : parsed.projects) {
+            if (isBlank(row.organizationCode) || isBlank(row.clientCode) || isBlank(row.shortName)) {
+                continue;
+            }
+
+            String key = row.organizationCode + "\u0000" + row.clientCode + "\u0000" + row.shortName;
+            ProjectRow previous = seen.putIfAbsent(key, row);
+            if (previous != null) {
+                row.valid = false;
+                parsed.addError("Projects", row.rowNumber, "short_name",
+                        "Duplicate project short_name '" + row.shortName
+                                + "' for organization_code '" + row.organizationCode
+                                + "' and client_code '" + row.clientCode + "'.");
+            }
+        }
+    }
+
+    private void validateReferences(ParsedWorkbook parsed) {
         for (ClientRow row : parsed.clients) {
             OrganizationRow organization = parsed.organizationByCode.get(row.organizationCode);
             if (organization == null || !organization.valid) {
@@ -404,26 +443,70 @@ public class ExcelImportService {
         }
     }
 
-    private ExcelImportCounts replaceUserData(Developer developer, ParsedWorkbook parsed) {
-        Long developerId = developer.getId();
-        Organization tempOrganization = createTemporaryOrganization(developer);
-        developer.setOrganization(tempOrganization);
-        developerRepository.saveAndFlush(developer);
+    private static ExcelImportSheetSchema sheet(String sheetName, List<String> requiredColumns, List<String> optionalColumns) {
+        return ExcelImportSheetSchema.builder()
+                .sheetName(sheetName)
+                .requiredColumns(requiredColumns)
+                .optionalColumns(optionalColumns)
+                .build();
+    }
 
-        List<Organization> oldOrganizations = organizationRepository.findByDeveloperIdOrderByIdAsc(developerId)
-                .stream()
-                .filter(organization -> !organization.getId().equals(tempOrganization.getId()))
-                .toList();
+    private ExcelImportCounts replaceUserData(Long developerId, ParsedWorkbook parsed) {
+        runInNewTransaction(() -> deleteExistingUserData(developerId));
+        return runInNewTransaction(() -> importParsedData(developerId, parsed));
+    }
+
+    private void deleteExistingUserData(Long developerId) {
+        Developer developer = developerRepository.findById(developerId)
+                .orElseThrow(() -> new NotFoundException("Developer not found"));
+        ExistingDataCounts counts = readExistingDataCounts(developerId);
+
+        log.info("Deleting existing data for developerId={}", developerId);
+
+        userSettingsRepository.findByDeveloperId(developerId).ifPresent(settings -> {
+            settings.setCurrentOrganization(null);
+            userSettingsRepository.save(settings);
+        });
+        developer.setOrganization(null);
+        developerRepository.save(developer);
+        userSettingsRepository.flush();
+        developerRepository.flush();
 
         timeEntryRepository.deleteAll(timeEntryRepository.findByDeveloperId(developerId));
+        timeEntryRepository.flush();
         taskRepository.deleteAll(taskRepository.findByDeveloperIdOrderByIdAsc(developerId));
-        projectRepository.deleteAll(projectRepository.findByDeveloperIdOrderByIdAsc(developerId));
-        clientRepository.deleteAll(clientRepository.findByDeveloperIdOrderByIdAsc(developerId));
-        userSettingsRepository.findByDeveloperId(developerId).ifPresent(userSettingsRepository::delete);
+        taskRepository.flush();
         softwareProductRepository.deleteAll(softwareProductRepository.findByDeveloperIdOrderByIdAsc(developerId));
-        organizationRepository.deleteAll(oldOrganizations);
+        softwareProductRepository.flush();
+        projectRepository.deleteAll(projectRepository.findByDeveloperIdOrderByIdAsc(developerId));
+        projectRepository.flush();
+        clientRepository.deleteAll(clientRepository.findByDeveloperIdOrderByIdAsc(developerId));
+        clientRepository.flush();
+        organizationRepository.deleteAll(organizationRepository.findByDeveloperIdOrderByIdAsc(developerId));
         organizationRepository.flush();
 
+        verifyUserDataDeleted(developerId);
+        log.info("""
+                Deleted existing data for developerId={}
+                - Organizations: {}
+                - Clients: {}
+                - Projects: {}
+                - Software Products: {}
+                - Tasks: {}
+                - Time Entries: {}
+                """,
+                developerId,
+                counts.organizations(),
+                counts.clients(),
+                counts.projects(),
+                counts.softwareProducts(),
+                counts.tasks(),
+                counts.timeEntries());
+    }
+
+    private ExcelImportCounts importParsedData(Long developerId, ParsedWorkbook parsed) {
+        Developer developer = developerRepository.findById(developerId)
+                .orElseThrow(() -> new NotFoundException("Developer not found"));
         Map<String, Organization> organizations = new LinkedHashMap<>();
         for (OrganizationRow row : parsed.organizations.stream().filter(ImportRow::valid).toList()) {
             Organization organization = organizationRepository.save(Organization.builder()
@@ -448,16 +531,7 @@ public class ExcelImportService {
                     .build());
             clients.put(row.code, client);
         }
-
-        Map<String, SoftwareProduct> softwareProducts = new LinkedHashMap<>();
-        for (SoftwareProductRow row : parsed.softwareProducts.stream().filter(ImportRow::valid).toList()) {
-            SoftwareProduct product = softwareProductRepository.save(SoftwareProduct.builder()
-                    .developer(developer)
-                    .shortName(row.shortName)
-                    .fullName(defaultString(row.fullName, row.shortName))
-                    .build());
-            softwareProducts.put(row.code, product);
-        }
+        clientRepository.flush();
 
         Map<String, Project> projects = new LinkedHashMap<>();
         for (ProjectRow row : parsed.projects.stream().filter(ImportRow::valid).toList()) {
@@ -470,13 +544,25 @@ public class ExcelImportService {
                     .developer(developer)
                     .organization(organization)
                     .client(client)
-                    .shortName(row.name)
-                    .fullName(row.name)
+                    .shortName(row.shortName)
+                    .fullName(row.fullName)
                     .description(row.description)
                     .completed(Boolean.TRUE.equals(row.completed))
                     .build());
             projects.put(row.code, project);
         }
+        projectRepository.flush();
+
+        Map<String, SoftwareProduct> softwareProducts = new LinkedHashMap<>();
+        for (SoftwareProductRow row : parsed.softwareProducts.stream().filter(ImportRow::valid).toList()) {
+            SoftwareProduct product = softwareProductRepository.save(SoftwareProduct.builder()
+                    .developer(developer)
+                    .shortName(row.shortName)
+                    .fullName(defaultString(row.fullName, row.shortName))
+                    .build());
+            softwareProducts.put(row.code, product);
+        }
+        softwareProductRepository.flush();
 
         Map<String, Task> tasks = new LinkedHashMap<>();
         for (TaskRow row : parsed.tasks.stream().filter(ImportRow::valid).toList()) {
@@ -496,6 +582,8 @@ public class ExcelImportService {
                     .taskNumber(row.taskNumber)
                     .name(row.name)
                     .comment(row.comment)
+                    .description(row.description)
+                    .implementationDetails(row.implementationDetails)
                     .estimatedHours(row.estimatedHours)
                     .completed(Boolean.TRUE.equals(row.completed))
                     .taskLink(row.taskLink)
@@ -503,6 +591,7 @@ public class ExcelImportService {
                     .build());
             tasks.put(row.code, task);
         }
+        taskRepository.flush();
 
         int savedTimeEntries = 0;
         for (TimeEntryRow row : parsed.timeEntries.stream().filter(ImportRow::valid).toList()) {
@@ -520,35 +609,16 @@ public class ExcelImportService {
                     .build());
             savedTimeEntries++;
         }
+        timeEntryRepository.flush();
 
-        UserSettingsRow settingsRow = parsed.userSettings.stream().filter(ImportRow::valid).findFirst().orElse(null);
-        Organization currentOrganization = settingsRow != null
-                ? organizations.get(settingsRow.currentOrganizationCode)
-                : organizations.values().stream().findFirst().orElse(null);
+        Organization currentOrganization = organizations.values().stream().findFirst().orElse(null);
         if (currentOrganization != null) {
             developer.setOrganization(currentOrganization);
             developerRepository.save(developer);
         }
-        organizationRepository.delete(tempOrganization);
-
-        if (settingsRow != null) {
-            userSettingsRepository.save(UserSettings.builder()
-                    .developer(developer)
-                    .currentOrganization(currentOrganization)
-                    .dailyHoursLimit(settingsRow.dailyHoursLimit)
-                    .reportsSaveDirectory(defaultString(settingsRow.reportsSaveDirectory, ""))
-                    .build());
-        } else if (currentOrganization != null) {
-            userSettingsRepository.save(UserSettings.builder()
-                    .developer(developer)
-                    .currentOrganization(currentOrganization)
-                    .dailyHoursLimit(8.0)
-                    .reportsSaveDirectory("")
-                    .build());
-        }
+        developerRepository.flush();
 
         return ExcelImportCounts.builder()
-                .userSettings(settingsRow != null ? 1 : 0)
                 .organizations(organizations.size())
                 .clients(clients.size())
                 .projects(projects.size())
@@ -558,12 +628,77 @@ public class ExcelImportService {
                 .build();
     }
 
-    private Organization createTemporaryOrganization(Developer developer) {
-        return organizationRepository.saveAndFlush(Organization.builder()
-                .developer(developer)
-                .shortName("__IMPORT_TMP_" + UUID.randomUUID())
-                .fullName("Temporary import organization")
-                .build());
+    private ExistingDataCounts readExistingDataCounts(Long developerId) {
+        return new ExistingDataCounts(
+                organizationRepository.findByDeveloperIdOrderByIdAsc(developerId).size(),
+                clientRepository.findByDeveloperIdOrderByIdAsc(developerId).size(),
+                projectRepository.findByDeveloperIdOrderByIdAsc(developerId).size(),
+                softwareProductRepository.findByDeveloperIdOrderByIdAsc(developerId).size(),
+                taskRepository.findByDeveloperIdOrderByIdAsc(developerId).size(),
+                timeEntryRepository.findByDeveloperId(developerId).size()
+        );
+    }
+
+    private void verifyUserDataDeleted(Long developerId) {
+        ExistingDataCounts remaining = readExistingDataCounts(developerId);
+        if (remaining.total() != 0) {
+            throw new RuntimeException("Unable to delete all existing data before import.");
+        }
+    }
+
+    private <T> T runInNewTransaction(TransactionCallback<T> callback) {
+        TransactionTemplate template = new TransactionTemplate(transactionManager);
+        template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        return template.execute(status -> callback.execute());
+    }
+
+    private void runInNewTransaction(Runnable callback) {
+        runInNewTransaction(() -> {
+            callback.run();
+            return null;
+        });
+    }
+
+    private ExcelImportResult importFailedResult(ExcelImportValidationResult validation) {
+        return ExcelImportResult.builder()
+                .imported(false)
+                .importedRowsCount(ExcelImportCounts.builder().build())
+                .validation(validation)
+                .build();
+    }
+
+    private ExcelImportValidationResult toUniqueConstraintValidation(DataIntegrityViolationException error) {
+        String message = resolveUniqueConstraintMessage(error);
+        return ExcelImportValidationResult.builder()
+                .status(ExcelImportStatus.INVALID)
+                .counts(ExcelImportCounts.builder().build())
+                .validRowsCount(ExcelImportCounts.builder().build())
+                .errorRowsCount(1)
+                .errors(List.of(ExcelImportIssue.builder()
+                        .message(message)
+                        .build()))
+                .warnings(List.of())
+                .build();
+    }
+
+    private String resolveUniqueConstraintMessage(DataIntegrityViolationException error) {
+        String text = error.getMostSpecificCause() != null
+                ? error.getMostSpecificCause().getMessage()
+                : error.getMessage();
+
+        if (text != null && text.contains("ux_clients_developer_short_name")) {
+            return "Client short_name must be unique for the current user. Check the Clients sheet for duplicate short_name values.";
+        }
+
+        if (text != null && text.contains("ux_projects_dev_org_client_short_name")) {
+            return "Project short_name must be unique for the same organization and client. Check duplicate Projects rows with the same organization_code, client_code, and short_name.";
+        }
+
+        if (text != null && text.toLowerCase(Locale.ROOT).contains("duplicate key")) {
+            return "Import failed because the Excel data violates a unique database constraint. Check duplicate short_name values in the import file.";
+        }
+
+        return "Import failed because the Excel data violates a database constraint.";
     }
 
     private Map<String, Integer> readHeaders(Row headerRow) {
@@ -706,6 +841,23 @@ public class ExcelImportService {
         String value(T row);
     }
 
+    private interface TransactionCallback<T> {
+        T execute();
+    }
+
+    private record ExistingDataCounts(
+            int organizations,
+            int clients,
+            int projects,
+            int softwareProducts,
+            int tasks,
+            int timeEntries
+    ) {
+        private int total() {
+            return organizations + clients + projects + softwareProducts + tasks + timeEntries;
+        }
+    }
+
     private static class SheetRow {
         private final String sheet;
         private final Row row;
@@ -749,7 +901,6 @@ public class ExcelImportService {
         private final Map<String, Map<String, Integer>> headers = new HashMap<>();
         private final List<ExcelImportIssue> errors = new ArrayList<>();
         private final List<ExcelImportIssue> warnings = new ArrayList<>();
-        private final List<UserSettingsRow> userSettings = new ArrayList<>();
         private final List<OrganizationRow> organizations = new ArrayList<>();
         private final List<ClientRow> clients = new ArrayList<>();
         private final List<ProjectRow> projects = new ArrayList<>();
@@ -784,7 +935,6 @@ public class ExcelImportService {
         private void finish() {
             markRowsWithErrorsInvalid();
             ExcelImportCounts counts = ExcelImportCounts.builder()
-                    .userSettings((int) userSettings.stream().filter(ImportRow::valid).count())
                     .organizations((int) organizations.stream().filter(ImportRow::valid).count())
                     .clients((int) clients.stream().filter(ImportRow::valid).count())
                     .projects((int) projects.stream().filter(ImportRow::valid).count())
@@ -792,15 +942,17 @@ public class ExcelImportService {
                     .tasks((int) tasks.stream().filter(ImportRow::valid).count())
                     .timeEntries((int) timeEntries.stream().filter(ImportRow::valid).count())
                     .build();
+            if (errors.isEmpty() && counts.total() == 0) {
+                addError(null, null, null, "The file contains no data to import.");
+            }
             int errorRowsCount = countErrorRows();
             ExcelImportStatus status = errors.isEmpty()
                     ? ExcelImportStatus.ALL_VALID
-                    : counts.total() == 0
-                        ? ExcelImportStatus.INVALID_NO_IMPORTABLE_DATA
-                        : ExcelImportStatus.PARTIALLY_VALID;
+                    : ExcelImportStatus.INVALID;
 
             result = ExcelImportValidationResult.builder()
                     .status(status)
+                    .counts(counts)
                     .validRowsCount(counts)
                     .errorRowsCount(errorRowsCount)
                     .errors(errors)
@@ -830,7 +982,6 @@ public class ExcelImportService {
 
         private List<? extends ImportRow> rowsForSheet(String sheet) {
             return switch (sheet) {
-                case "UserSettings" -> userSettings;
                 case "Organizations" -> organizations;
                 case "Clients" -> clients;
                 case "Projects" -> projects;
@@ -869,16 +1020,6 @@ public class ExcelImportService {
         }
     }
 
-    private static class UserSettingsRow extends ImportRow {
-        private Double dailyHoursLimit;
-        private String currentOrganizationCode;
-        private String reportsSaveDirectory;
-
-        private UserSettingsRow(int rowNumber) {
-            super("UserSettings", rowNumber);
-        }
-    }
-
     private static class OrganizationRow extends CodedRow {
         private String shortName;
         private String fullName;
@@ -909,16 +1050,13 @@ public class ExcelImportService {
     private static class ProjectRow extends CodedRow {
         private String organizationCode;
         private String clientCode;
-        private String name;
+        private String shortName;
+        private String fullName;
         private String description;
         private Boolean completed;
 
         private ProjectRow(int rowNumber) {
             super("Projects", rowNumber);
-        }
-
-        private String name() {
-            return name;
         }
     }
 
@@ -943,6 +1081,8 @@ public class ExcelImportService {
         private String taskNumber;
         private String name;
         private String comment;
+        private String description;
+        private String implementationDetails;
         private Double estimatedHours;
         private Boolean completed;
         private String taskLink;

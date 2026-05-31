@@ -17,6 +17,8 @@ public class DatabaseSequenceInitializer {
     @Transactional
     public void synchronizeIdentitySequences() {
         allowEmptyCurrentOrganization();
+        allowEmptyDeveloperOrganization();
+        convertLongTextColumns();
         backfillDeveloperOwnership();
         synchronizeSequence("organizations_id_seq", "organizations");
         synchronizeSequence("clients_id_seq", "clients");
@@ -31,6 +33,28 @@ public class DatabaseSequenceInitializer {
                 ALTER TABLE IF EXISTS user_settings
                 ALTER COLUMN current_organization_id DROP NOT NULL
                 """).executeUpdate();
+    }
+
+    private void allowEmptyDeveloperOrganization() {
+        entityManager.createNativeQuery("""
+                ALTER TABLE IF EXISTS developers
+                ALTER COLUMN organization_id DROP NOT NULL
+                """).executeUpdate();
+    }
+
+    private void convertLongTextColumns() {
+        alterColumnToText("tasks", "comment");
+        alterColumnToText("tasks", "description");
+        alterColumnToText("tasks", "implementation_details");
+        alterColumnToText("projects", "description");
+        alterColumnToText("time_entries", "comment");
+    }
+
+    private void alterColumnToText(String tableName, String columnName) {
+        entityManager.createNativeQuery("""
+                ALTER TABLE IF EXISTS %s
+                ALTER COLUMN %s TYPE TEXT
+                """.formatted(tableName, columnName)).executeUpdate();
     }
 
     private void backfillDeveloperOwnership() {
@@ -126,7 +150,7 @@ public class DatabaseSequenceInitializer {
 
         deduplicateShortNames("organizations");
         deduplicateShortNames("clients");
-        deduplicateShortNames("projects");
+        deduplicateProjectShortNames();
         deduplicateShortNames("software_products");
 
         entityManager.createNativeQuery("""
@@ -138,8 +162,16 @@ public class DatabaseSequenceInitializer {
                 on clients (developer_id, short_name)
                 """).executeUpdate();
         entityManager.createNativeQuery("""
-                create unique index if not exists ux_projects_developer_short_name
-                on projects (developer_id, short_name)
+                alter table if exists projects
+                drop constraint if exists ux_projects_developer_short_name
+                """).executeUpdate();
+        dropProjectDeveloperShortNameConstraints();
+        entityManager.createNativeQuery("""
+                drop index if exists ux_projects_developer_short_name
+                """).executeUpdate();
+        entityManager.createNativeQuery("""
+                create unique index if not exists ux_projects_dev_org_client_short_name
+                on projects (developer_id, organization_id, client_id, short_name)
                 """).executeUpdate();
         entityManager.createNativeQuery("""
                 create unique index if not exists ux_software_products_developer_short_name
@@ -160,6 +192,50 @@ public class DatabaseSequenceInitializer {
                 where t.id = d.id
                   and d.rn > 1
                 """.formatted(tableName, tableName)).executeUpdate();
+    }
+
+    private void deduplicateProjectShortNames() {
+        entityManager.createNativeQuery("""
+                with duplicate_rows as (
+                    select id,
+                           row_number() over (
+                               partition by developer_id, organization_id, client_id, short_name
+                               order by id
+                           ) as rn
+                    from projects
+                )
+                update projects t
+                set short_name = t.short_name || ' (' || t.id || ')'
+                from duplicate_rows d
+                where t.id = d.id
+                  and d.rn > 1
+                """).executeUpdate();
+    }
+
+    private void dropProjectDeveloperShortNameConstraints() {
+        entityManager.createNativeQuery("""
+                do $$
+                declare
+                    old_constraint text;
+                begin
+                    for old_constraint in
+                        select c.conname
+                        from pg_constraint c
+                        join pg_class t on t.oid = c.conrelid
+                        join pg_namespace n on n.oid = t.relnamespace
+                        where n.nspname = current_schema()
+                          and t.relname = 'projects'
+                          and c.contype = 'u'
+                          and (
+                              select array_agg(a.attname::text order by a.attname::text)
+                              from unnest(c.conkey) key(attnum)
+                              join pg_attribute a on a.attrelid = t.oid and a.attnum = key.attnum
+                          ) = array['developer_id', 'short_name']::text[]
+                    loop
+                        execute format('alter table %I drop constraint %I', 'projects', old_constraint);
+                    end loop;
+                end $$;
+                """).executeUpdate();
     }
 
     private void synchronizeSequence(String sequenceName, String tableName) {
