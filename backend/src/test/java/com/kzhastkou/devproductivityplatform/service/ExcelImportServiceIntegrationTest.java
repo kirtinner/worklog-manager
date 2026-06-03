@@ -178,6 +178,57 @@ class ExcelImportServiceIntegrationTest {
     }
 
     @Test
+    void importPersistsClientNotDisplayedFalseValue() throws IOException {
+        Developer developer = developerRepository.saveAndFlush(Developer.builder()
+                .email("import-visible-client-false-" + System.nanoTime() + "@example.test")
+                .password("test")
+                .role(Role.USER)
+                .build());
+        developerIds.add(developer.getId());
+
+        ExcelImportResult result = excelImportService.importData(workbookFileWithClientNotDisplayed("false", true), developer.getId());
+
+        assertThat(result.isImported()).isTrue();
+        assertThat(clientRepository.findByDeveloperIdOrderByIdAsc(developer.getId()))
+                .singleElement()
+                .satisfies(client -> assertThat(client.getNotDisplayed()).isFalse());
+    }
+
+    @Test
+    void importDefaultsMissingClientNotDisplayedColumnToFalse() throws IOException {
+        Developer developer = developerRepository.saveAndFlush(Developer.builder()
+                .email("import-visible-client-missing-" + System.nanoTime() + "@example.test")
+                .password("test")
+                .role(Role.USER)
+                .build());
+        developerIds.add(developer.getId());
+
+        ExcelImportResult result = excelImportService.importData(workbookFileWithClientNotDisplayed("", false), developer.getId());
+
+        assertThat(result.isImported()).isTrue();
+        assertThat(clientRepository.findByDeveloperIdOrderByIdAsc(developer.getId()))
+                .singleElement()
+                .satisfies(client -> assertThat(client.getNotDisplayed()).isFalse());
+    }
+
+    @Test
+    void importDefaultsEmptyClientNotDisplayedValueToFalse() throws IOException {
+        Developer developer = developerRepository.saveAndFlush(Developer.builder()
+                .email("import-visible-client-empty-" + System.nanoTime() + "@example.test")
+                .password("test")
+                .role(Role.USER)
+                .build());
+        developerIds.add(developer.getId());
+
+        ExcelImportResult result = excelImportService.importData(workbookFileWithClientNotDisplayed("", true), developer.getId());
+
+        assertThat(result.isImported()).isTrue();
+        assertThat(clientRepository.findByDeveloperIdOrderByIdAsc(developer.getId()))
+                .singleElement()
+                .satisfies(client -> assertThat(client.getNotDisplayed()).isFalse());
+    }
+
+    @Test
     void fullDataExportCanBeImportedBack() throws IOException {
         Developer developer = developerRepository.saveAndFlush(Developer.builder()
                 .email("full-export-cycle-" + System.nanoTime() + "@example.test")
@@ -193,6 +244,7 @@ class ExcelImportServiceIntegrationTest {
         assertThat(exportFile.fileName()).startsWith("dev_platform_full_export_").endsWith(".xlsx");
         assertThat(exportFile.content()).isNotEmpty();
         assertExportContainsTaskCreatedAt(exportFile.content(), "2026-05-20");
+        assertExportContainsClientNotDisplayed(exportFile.content(), "true");
 
         ExcelImportResult importBack = excelImportService.importData(new MockMultipartFile(
                 "file",
@@ -233,6 +285,25 @@ class ExcelImportServiceIntegrationTest {
 
             assertThat(createdAtColumn).isGreaterThanOrEqualTo(0);
             assertThat(tasks.getRow(1).getCell(createdAtColumn).getStringCellValue()).isEqualTo(expectedDate);
+        }
+    }
+
+    private void assertExportContainsClientNotDisplayed(byte[] content, String expectedValue) throws IOException {
+        try (Workbook workbook = WorkbookFactory.create(new ByteArrayInputStream(content))) {
+            Sheet clients = workbook.getSheet("Clients");
+            assertThat(clients).isNotNull();
+
+            Row header = clients.getRow(0);
+            int notDisplayedColumn = -1;
+            for (int index = 0; index < header.getLastCellNum(); index++) {
+                if ("not_displayed".equals(header.getCell(index).getStringCellValue())) {
+                    notDisplayedColumn = index;
+                    break;
+                }
+            }
+
+            assertThat(notDisplayedColumn).isGreaterThanOrEqualTo(0);
+            assertThat(String.valueOf(clients.getRow(1).getCell(notDisplayedColumn).getBooleanCellValue())).isEqualTo(expectedValue);
         }
     }
 
@@ -360,16 +431,28 @@ class ExcelImportServiceIntegrationTest {
     }
 
     private MockMultipartFile workbookFileWithHiddenClient() throws IOException {
+        return workbookFileWithClientNotDisplayed("истина", true);
+    }
+
+    private MockMultipartFile workbookFileWithClientNotDisplayed(String notDisplayed, boolean includeNotDisplayedColumn) throws IOException {
         Workbook workbook = new XSSFWorkbook();
         createSheet(workbook, "Organizations", "code", "short_name", "full_name");
-        createSheet(workbook, "Clients", "code", "organization_code", "short_name", "full_name", "not_displayed");
+        if (includeNotDisplayedColumn) {
+            createSheet(workbook, "Clients", "code", "organization_code", "short_name", "full_name", "not_displayed");
+        } else {
+            createSheet(workbook, "Clients", "code", "organization_code", "short_name", "full_name");
+        }
         createSheet(workbook, "Projects", "code", "organization_code", "client_code", "short_name", "full_name", "description", "completed");
         createSheet(workbook, "SoftwareProducts", "code", "short_name", "full_name");
         createSheet(workbook, "Tasks", "code", "organization_code", "client_code", "project_code", "software_product_code", "task_number", "name", "created_at", "comment", "estimated_hours", "completed", "task_link");
         createSheet(workbook, "TimeEntries", "task_code", "entry_date", "hours", "comment");
 
         appendRow(workbook.getSheet("Organizations"), "ORG1", "Org 1", "Organization 1");
-        appendRow(workbook.getSheet("Clients"), "CLIENT1", "ORG1", "Client 1", "Client Full 1", "истина");
+        if (includeNotDisplayedColumn) {
+            appendRow(workbook.getSheet("Clients"), "CLIENT1", "ORG1", "Client 1", "Client Full 1", notDisplayed);
+        } else {
+            appendRow(workbook.getSheet("Clients"), "CLIENT1", "ORG1", "Client 1", "Client Full 1");
+        }
         appendRow(workbook.getSheet("Projects"), "PROJECT1", "ORG1", "CLIENT1", "Project 1", "Project Full 1", "Project description", "false");
         appendRow(workbook.getSheet("SoftwareProducts"), "PRODUCT1", "Product 1", "Product Full 1");
         appendRow(workbook.getSheet("Tasks"), "TASK1", "ORG1", "CLIENT1", "PROJECT1", "PRODUCT1", "TASK-1", "Task 1", "2026-05-20", "", "1", "false", "");

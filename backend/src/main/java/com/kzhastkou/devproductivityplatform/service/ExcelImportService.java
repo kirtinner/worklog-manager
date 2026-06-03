@@ -703,6 +703,25 @@ public class ExcelImportService {
         }
 
         String normalized = value.trim().toLowerCase(Locale.ROOT);
+        if (isTruthyBoolean(normalized)) {
+            return Boolean.TRUE;
+        }
+        if (isFalsyBoolean(normalized)) {
+            return Boolean.FALSE;
+        }
+        parsed.addError(sheet, row.rowNumber, field, "Invalid boolean value.");
+        return defaultFalse ? Boolean.FALSE : null;
+    }
+
+    private boolean isTruthyBoolean(String normalized) {
+        return List.of("true", "yes", "1", "\u0438\u0441\u0442\u0438\u043d\u0430", "\u0434\u0430", "РёСЃС‚РёРЅР°").contains(normalized);
+    }
+
+    private boolean isFalsyBoolean(String normalized) {
+        return List.of("false", "no", "0", "\u043b\u043e\u0436\u044c", "\u043d\u0435\u0442", "Р»РѕР¶СЊ").contains(normalized);
+    }
+
+    private Boolean parseBooleanLegacyFallback(SheetRow row, String sheet, String field, ParsedWorkbook parsed, boolean defaultFalse, String normalized) {
         if (List.of("true", "yes", "1", "истина").contains(normalized)) {
             return Boolean.TRUE;
         }

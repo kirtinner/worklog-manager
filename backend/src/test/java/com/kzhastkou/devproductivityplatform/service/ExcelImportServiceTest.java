@@ -228,6 +228,48 @@ class ExcelImportServiceTest {
     }
 
     @Test
+    void clientNotDisplayedColumnAcceptsDaNetBooleanValues() throws IOException {
+        Map<String, List<String>> override = new LinkedHashMap<>(headers());
+        override.put("Clients", List.of("code", "organization_code", "short_name", "full_name", "not_displayed"));
+        Workbook workbook = workbook(override, false, false, false);
+
+        appendRow(workbook.getSheet("Organizations"), "ORG1", "Org", "Organization");
+        appendRow(workbook.getSheet("Clients"), "CLIENT1", "ORG1", "Client", "Client Full", "\u0434\u0430");
+        appendRow(workbook.getSheet("Projects"), "PROJECT1", "ORG1", "CLIENT1", "Project", "Project Full", "Project description", "false");
+        appendRow(workbook.getSheet("SoftwareProducts"), "PRODUCT1", "Product", "Product Full");
+        appendRow(workbook.getSheet("Tasks"), "TASK1", "ORG1", "CLIENT1", "PROJECT1", "PRODUCT1", "T-1", "Task", "2026-05-20", "", "2", "false", "");
+        appendRow(workbook.getSheet("TimeEntries"), "TASK1", "2026-05-24", "1", "Work");
+
+        ExcelImportValidationResult result = service.validate(workbookFile(workbook), 1L);
+
+        assertThat(result.getStatus()).isEqualTo(ExcelImportStatus.ALL_VALID);
+        assertThat(result.getErrors()).isEmpty();
+    }
+
+    @Test
+    void clientNotDisplayedInvalidBooleanIsRejected() throws IOException {
+        Map<String, List<String>> override = new LinkedHashMap<>(headers());
+        override.put("Clients", List.of("code", "organization_code", "short_name", "full_name", "not_displayed"));
+        Workbook workbook = workbook(override, false, false, false);
+
+        appendRow(workbook.getSheet("Organizations"), "ORG1", "Org", "Organization");
+        appendRow(workbook.getSheet("Clients"), "CLIENT1", "ORG1", "Client", "Client Full", "maybe");
+        appendRow(workbook.getSheet("Projects"), "PROJECT1", "ORG1", "CLIENT1", "Project", "Project Full", "Project description", "false");
+        appendRow(workbook.getSheet("SoftwareProducts"), "PRODUCT1", "Product", "Product Full");
+        appendRow(workbook.getSheet("Tasks"), "TASK1", "ORG1", "CLIENT1", "PROJECT1", "PRODUCT1", "T-1", "Task", "2026-05-20", "", "2", "false", "");
+        appendRow(workbook.getSheet("TimeEntries"), "TASK1", "2026-05-24", "1", "Work");
+
+        ExcelImportValidationResult result = service.validate(workbookFile(workbook), 1L);
+
+        assertThat(result.getStatus()).isEqualTo(ExcelImportStatus.INVALID);
+        assertThat(result.getErrors()).anyMatch(error ->
+                "Clients".equals(error.getSheet())
+                        && "not_displayed".equals(error.getField())
+                        && "Invalid boolean value.".equals(error.getMessage())
+        );
+    }
+
+    @Test
     void invalidWorkbookDoesNotEnablePartialImport() throws IOException {
         Workbook workbook = workbook(headers(), true, false, false);
         appendRow(workbook.getSheet("Tasks"), "TASK_BAD", "ORG1", "CLIENT1", "PROJECT1", "PRODUCT1", "", "Broken Task", "2026-05-20", "", "1", "false", "");
