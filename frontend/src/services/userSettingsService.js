@@ -44,6 +44,16 @@ export async function updateUserSettings(payload) {
     return normalizeUserSettings(response.data);
 }
 
+export async function updateGeneralUserSettings(payload) {
+    const response = await api.put("/user-settings/general", toUserSettingsRequest(payload));
+    return normalizeUserSettings(response.data);
+}
+
+export async function updateScheduledExportSettings(payload) {
+    const response = await api.put("/user-settings/scheduled-export", toUserSettingsRequest(payload));
+    return normalizeUserSettings(response.data);
+}
+
 export async function runScheduledFullDataExportNow() {
     const response = await api.post("/user-settings/scheduled-export/run-now");
     return {

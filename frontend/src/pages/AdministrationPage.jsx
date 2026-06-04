@@ -1,5 +1,8 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import DirectorySettingField from "../components/DirectorySettingField";
+import SettingsResultDialog from "../components/SettingsResultDialog";
 import { downloadFullDataExport, getImportSchema, importValidatedFile, validateImportFile } from "../services/administrationService";
+import { validateFolder } from "../services/userSettingsService";
 
 function getFileName(file) {
     return file?.name ?? "No file selected";
@@ -197,7 +200,13 @@ function ImportHelpDialog({ schema, loading, error, onClose }) {
     );
 }
 
-export default function AdministrationPage() {
+export default function AdministrationPage({
+    userSettings = {},
+    userSettingsLoading = false,
+    userSettingsError = "",
+    onScheduledExportSettingsChange = async () => userSettings,
+    onRunScheduledExportNow = async () => ({ success: false, message: "Run Export Now is unavailable." })
+}) {
     const [selectedFile, setSelectedFile] = useState(null);
     const [validationResult, setValidationResult] = useState(null);
     const [confirmOpen, setConfirmOpen] = useState(false);
@@ -210,11 +219,30 @@ export default function AdministrationPage() {
     const [message, setMessage] = useState("");
     const [busy, setBusy] = useState(false);
     const [exportBusy, setExportBusy] = useState(false);
+    const [scheduledExportEnabled, setScheduledExportEnabled] = useState(Boolean(userSettings.scheduledExportEnabled));
+    const [scheduledExportFolder, setScheduledExportFolder] = useState(userSettings.scheduledExportFolder ?? "");
+    const [scheduledExportTime, setScheduledExportTime] = useState(userSettings.scheduledExportTime ?? "02:00");
+    const [scheduledExportRetentionDays, setScheduledExportRetentionDays] = useState(String(userSettings.scheduledExportRetentionDays ?? 30));
+    const [scheduledExportSaving, setScheduledExportSaving] = useState(false);
+    const [runNowExecuting, setRunNowExecuting] = useState(false);
+    const [resultDialog, setResultDialog] = useState(null);
     const fileInputRef = useRef(null);
 
     const canExecuteImport = selectedFile
         && validationResult?.status === "ALL_VALID"
         && countTotal(validationResult.counts ?? validationResult.validRowsCount) > 0;
+
+    useEffect(() => {
+        setScheduledExportEnabled(Boolean(userSettings.scheduledExportEnabled));
+        setScheduledExportFolder(userSettings.scheduledExportFolder ?? "");
+        setScheduledExportTime(userSettings.scheduledExportTime ?? "02:00");
+        setScheduledExportRetentionDays(String(userSettings.scheduledExportRetentionDays ?? 30));
+    }, [
+        userSettings.scheduledExportEnabled,
+        userSettings.scheduledExportFolder,
+        userSettings.scheduledExportTime,
+        userSettings.scheduledExportRetentionDays
+    ]);
 
     const handleChooseFile = () => {
         fileInputRef.current?.click();
@@ -342,6 +370,97 @@ export default function AdministrationPage() {
         }
     };
 
+    const handleValidateFolder = async () => {
+        setResultDialog(null);
+
+        try {
+            const result = await validateFolder(scheduledExportFolder);
+            setResultDialog({
+                ...result,
+                title: result.success ? "Folder Validation" : "Folder Validation Failed"
+            });
+        } catch (error) {
+            setResultDialog({
+                success: false,
+                title: "Folder Validation Failed",
+                message: getApiErrorMessage(error, "Export Folder validation failed."),
+                technicalDetails: error?.message ?? ""
+            });
+        }
+    };
+
+    const handleClearScheduledExportFolder = () => {
+        setScheduledExportFolder("");
+    };
+
+    const handleSaveScheduledExportSettings = async () => {
+        const parsedRetentionDays = Number(scheduledExportRetentionDays);
+
+        setResultDialog(null);
+
+        if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(scheduledExportTime)) {
+            setResultDialog({ success: false, title: "Scheduled Export Failed", message: "Run Daily At must use HH:mm format." });
+            return;
+        }
+
+        if (!Number.isInteger(parsedRetentionDays) || parsedRetentionDays < 0) {
+            setResultDialog({ success: false, title: "Scheduled Export Failed", message: "Retention Days must be 0 or greater." });
+            return;
+        }
+
+        setScheduledExportSaving(true);
+        try {
+            await onScheduledExportSettingsChange({
+                scheduledExportEnabled,
+                scheduledExportFolder,
+                scheduledExportTime,
+                scheduledExportRetentionDays: parsedRetentionDays
+            });
+            setResultDialog({ success: true, title: "Scheduled Full Data Export", message: "Scheduled export settings saved." });
+        } catch (error) {
+            setResultDialog({
+                success: false,
+                title: "Scheduled Export Failed",
+                message: getApiErrorMessage(error, "Unable to save scheduled export settings."),
+                technicalDetails: error?.message ?? ""
+            });
+        } finally {
+            setScheduledExportSaving(false);
+        }
+    };
+
+    const handleRunExportNow = async () => {
+        setResultDialog(null);
+        setRunNowExecuting(true);
+
+        try {
+            const result = await onRunScheduledExportNow();
+            setResultDialog({ ...result, title: result.success ? "Full Data Export" : "Full Data Export failed" });
+        } catch (error) {
+            setResultDialog({
+                success: false,
+                title: "Full Data Export failed",
+                message: getApiErrorMessage(error, "Unable to run scheduled export."),
+                technicalDetails: error?.message ?? ""
+            });
+        } finally {
+            setRunNowExecuting(false);
+        }
+    };
+
+    const formatDateTime = (value) => {
+        if (!value) {
+            return "";
+        }
+
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+            return String(value);
+        }
+
+        return date.toLocaleString();
+    };
+
     const confirmTitle = "Full Data Import";
     const confirmButtonText = "Full Data Import";
 
@@ -445,6 +564,101 @@ export default function AdministrationPage() {
                     </div>
                 </section>
 
+                <section className="tracking-panel organizations-panel">
+                    <div className="tracking-panel-header organizations-panel-header">
+                        <div>
+                            <h3>Scheduled Full Data Export</h3>
+                        </div>
+                        <div className="settings-user-actions">
+                            <button
+                                type="button"
+                                className="tracking-modal-button tracking-modal-button-secondary"
+                                onClick={handleSaveScheduledExportSettings}
+                                disabled={userSettingsLoading || scheduledExportSaving}
+                            >
+                                Save
+                            </button>
+                            <button
+                                type="button"
+                                className="tracking-save-button"
+                                onClick={handleRunExportNow}
+                                disabled={userSettingsLoading || scheduledExportSaving || runNowExecuting}
+                            >
+                                Run Export Now
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="tracking-panel-body">
+                        <div className="settings-scheduled-grid">
+                            <div className="tracking-modal-field settings-checkbox-field">
+                                <span></span>
+                                <label className="tracking-modal-checkbox-control settings-inline-checkbox-control">
+                                    <input
+                                        type="checkbox"
+                                        checked={scheduledExportEnabled}
+                                        onChange={event => setScheduledExportEnabled(event.target.checked)}
+                                        disabled={userSettingsLoading || scheduledExportSaving}
+                                    />
+                                    <span>Enable Scheduled Export</span>
+                                </label>
+                            </div>
+
+                            <DirectorySettingField
+                                label="Export Folder"
+                                value={scheduledExportFolder}
+                                placeholder="D:/YandexDisk/DevProductivityPlatform/Backups"
+                                disabled={userSettingsLoading || scheduledExportSaving}
+                                clearLabel="Clear export folder"
+                                onChange={setScheduledExportFolder}
+                                onValidate={handleValidateFolder}
+                                onClear={handleClearScheduledExportFolder}
+                            />
+
+                            <label className="tracking-modal-field settings-compact-field">
+                                <span>Run Daily At</span>
+                                <input
+                                    type="time"
+                                    value={scheduledExportTime}
+                                    onChange={event => setScheduledExportTime(event.target.value)}
+                                    disabled={userSettingsLoading || scheduledExportSaving}
+                                />
+                            </label>
+
+                            <label className="tracking-modal-field settings-compact-field">
+                                <span>Retention Days</span>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    value={scheduledExportRetentionDays}
+                                    onChange={event => setScheduledExportRetentionDays(event.target.value)}
+                                    disabled={userSettingsLoading || scheduledExportSaving}
+                                />
+                            </label>
+
+                            <label className="tracking-modal-field">
+                                <span>Last Run</span>
+                                <input type="text" value={formatDateTime(userSettings.scheduledExportLastRunAt)} readOnly />
+                            </label>
+
+                            <label className="tracking-modal-field">
+                                <span>Last Success</span>
+                                <input type="text" value={formatDateTime(userSettings.scheduledExportLastSuccessAt)} readOnly />
+                            </label>
+
+                            <label className="tracking-modal-field settings-directory-field">
+                                <span>Last Error</span>
+                                <input type="text" value={userSettings.scheduledExportLastErrorMessage ?? ""} readOnly />
+                            </label>
+
+                            {userSettingsError ? (
+                                <div className="tracking-modal-error settings-directory-field">User settings: {userSettingsError}</div>
+                            ) : null}
+                        </div>
+                    </div>
+                </section>
+
             </div>
 
             {validationFailureOpen ? (
@@ -512,6 +726,11 @@ export default function AdministrationPage() {
                     </div>
                 </div>
             ) : null}
+
+            <SettingsResultDialog
+                result={resultDialog}
+                onClose={() => setResultDialog(null)}
+            />
         </div>
     );
 }

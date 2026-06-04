@@ -212,6 +212,68 @@ class ExcelImportServiceIntegrationTest {
     }
 
     @Test
+    void generalUserSettingsSaveDoesNotOverwriteScheduledExportSettings() {
+        Developer developer = developerRepository.saveAndFlush(Developer.builder()
+                .email("general-settings-preserve-scheduled-" + System.nanoTime() + "@example.test")
+                .password("test")
+                .role(Role.USER)
+                .build());
+        developerIds.add(developer.getId());
+
+        UserSettingsRequest scheduledRequest = new UserSettingsRequest();
+        scheduledRequest.setScheduledExportEnabled(true);
+        scheduledRequest.setScheduledExportFolder(tempDir.toString());
+        scheduledRequest.setScheduledExportTime("03:15");
+        scheduledRequest.setScheduledExportRetentionDays(14);
+        userSettingsService.updateScheduledExportForUser(developer.getId(), scheduledRequest);
+
+        UserSettingsRequest generalRequest = new UserSettingsRequest();
+        generalRequest.setDailyHoursLimit(6.5);
+        generalRequest.setReportsSaveDirectory("");
+        userSettingsService.updateGeneralForUser(developer.getId(), generalRequest);
+
+        assertThat(userSettingsService.getForUser(developer.getId()))
+                .satisfies(settings -> {
+                    assertThat(settings.getDailyHoursLimit()).isEqualTo(6.5);
+                    assertThat(settings.getScheduledExportEnabled()).isTrue();
+                    assertThat(settings.getScheduledExportFolder()).isEqualTo(tempDir.toString());
+                    assertThat(settings.getScheduledExportTime()).isEqualTo("03:15");
+                    assertThat(settings.getScheduledExportRetentionDays()).isEqualTo(14);
+                });
+    }
+
+    @Test
+    void scheduledExportSettingsSaveDoesNotOverwriteGeneralUserSettings() {
+        Developer developer = developerRepository.saveAndFlush(Developer.builder()
+                .email("scheduled-settings-preserve-general-" + System.nanoTime() + "@example.test")
+                .password("test")
+                .role(Role.USER)
+                .build());
+        developerIds.add(developer.getId());
+
+        UserSettingsRequest generalRequest = new UserSettingsRequest();
+        generalRequest.setDailyHoursLimit(7.5);
+        generalRequest.setReportsSaveDirectory(tempDir.toString());
+        userSettingsService.updateGeneralForUser(developer.getId(), generalRequest);
+
+        UserSettingsRequest scheduledRequest = new UserSettingsRequest();
+        scheduledRequest.setScheduledExportEnabled(false);
+        scheduledRequest.setScheduledExportFolder("");
+        scheduledRequest.setScheduledExportTime("04:30");
+        scheduledRequest.setScheduledExportRetentionDays(5);
+        userSettingsService.updateScheduledExportForUser(developer.getId(), scheduledRequest);
+
+        assertThat(userSettingsService.getForUser(developer.getId()))
+                .satisfies(settings -> {
+                    assertThat(settings.getDailyHoursLimit()).isEqualTo(7.5);
+                    assertThat(settings.getReportsSaveDirectory()).isEqualTo(tempDir.toString());
+                    assertThat(settings.getScheduledExportEnabled()).isFalse();
+                    assertThat(settings.getScheduledExportTime()).isEqualTo("04:30");
+                    assertThat(settings.getScheduledExportRetentionDays()).isEqualTo(5);
+                });
+    }
+
+    @Test
     void cleanupOldExportsDeletesOnlyMatchingOldExportFiles() throws IOException {
         Path oldExport = tempDir.resolve("dev_platform_full_export_2026-01-01_02-00.xlsx");
         Path newExport = tempDir.resolve("dev_platform_full_export_2026-06-01_02-00.xlsx");

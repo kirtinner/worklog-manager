@@ -63,6 +63,39 @@ public class UserSettingsService {
     }
 
     @Transactional
+    public UserSettingsResponse updateGeneralForUser(Long developerId, UserSettingsRequest request) {
+        Developer developer = resolveDeveloper(developerId);
+        Organization organization = request.getCurrentOrganizationId() != null
+                ? resolveOrganization(request.getCurrentOrganizationId(), developer.getId())
+                : null;
+        UserSettings settings = getOrCreateSettings(developer);
+        validateOptionalFolder("Reports Save Directory", request.getReportsSaveDirectory());
+
+        settings.setCurrentOrganization(organization);
+        settings.setDailyHoursLimit(request.getDailyHoursLimit());
+        settings.setReportsSaveDirectory(normalizeText(request.getReportsSaveDirectory()));
+
+        UserSettings savedSettings = userSettingsRepository.save(settings);
+        log.info("General settings saved: developerId={}", developerId);
+        return toResponse(savedSettings);
+    }
+
+    @Transactional
+    public UserSettingsResponse updateScheduledExportForUser(Long developerId, UserSettingsRequest request) {
+        UserSettings settings = getOrCreateSettings(resolveDeveloper(developerId));
+        validateScheduledExportSettings(request);
+
+        settings.setScheduledExportEnabled(Boolean.TRUE.equals(request.getScheduledExportEnabled()));
+        settings.setScheduledExportFolder(normalizeText(request.getScheduledExportFolder()));
+        settings.setScheduledExportTime(normalizeScheduledExportTime(request.getScheduledExportTime()));
+        settings.setScheduledExportRetentionDays(normalizeRetentionDays(request.getScheduledExportRetentionDays()));
+
+        UserSettings savedSettings = userSettingsRepository.save(settings);
+        log.info("Scheduled export settings saved: developerId={}, scheduledExportEnabled={}", developerId, savedSettings.getScheduledExportEnabled());
+        return toResponse(savedSettings);
+    }
+
+    @Transactional
     public ScheduledExportRunResponse runScheduledExportNow(Long developerId) {
         UserSettings settings = getOrCreateSettings(resolveDeveloper(developerId));
         log.info("Run Export Now executed: developerId={}", developerId);
@@ -202,6 +235,19 @@ public class UserSettingsService {
 
     private void validateSettingsFolders(UserSettingsRequest request) {
         validateOptionalFolder("Reports Save Directory", request.getReportsSaveDirectory());
+        validateScheduledExportSettings(request);
+    }
+
+    private void validateScheduledExportSettings(UserSettingsRequest request) {
+        String scheduledTime = normalizeScheduledExportTime(request.getScheduledExportTime());
+        if (!scheduledTime.matches("^([01]\\d|2[0-3]):[0-5]\\d$")) {
+            throw new IllegalArgumentException("Run Daily At must use HH:mm format.");
+        }
+
+        Integer retentionDays = request.getScheduledExportRetentionDays();
+        if (retentionDays != null && retentionDays < 0) {
+            throw new IllegalArgumentException("Retention Days must be 0 or greater.");
+        }
 
         String exportFolder = normalizeText(request.getScheduledExportFolder());
         if (Boolean.TRUE.equals(request.getScheduledExportEnabled()) && exportFolder.isBlank()) {

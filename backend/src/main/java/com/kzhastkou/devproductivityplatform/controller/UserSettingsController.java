@@ -45,6 +45,29 @@ public class UserSettingsController {
         return userSettingsService.updateForUser(userId, request);
     }
 
+    @PutMapping("/general")
+    public UserSettingsResponse updateGeneralSettings(@Valid @RequestBody UserSettingsRequest request) {
+        Long userId = resolveCurrentUserId();
+        log.info(
+                "PUT /api/user-settings/general resolved userId={}, currentOrganizationId={}, dailyHoursLimit={}",
+                userId,
+                request.getCurrentOrganizationId(),
+                request.getDailyHoursLimit()
+        );
+        return userSettingsService.updateGeneralForUser(userId, request);
+    }
+
+    @PutMapping("/scheduled-export")
+    public UserSettingsResponse updateScheduledExportSettings(@RequestBody UserSettingsRequest request) {
+        Long userId = resolveCurrentUserId();
+        log.info(
+                "PUT /api/user-settings/scheduled-export resolved userId={}, scheduledExportEnabled={}",
+                userId,
+                request.getScheduledExportEnabled()
+        );
+        return userSettingsService.updateScheduledExportForUser(userId, request);
+    }
+
     @PostMapping("/scheduled-export/run-now")
     public ScheduledExportRunResponse runScheduledExportNow() {
         Long userId = resolveCurrentUserId();

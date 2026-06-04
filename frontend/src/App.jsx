@@ -16,6 +16,8 @@ import { getSoftwareProducts } from "./services/softwareProductsService";
 import {
     getUserSettings,
     runScheduledFullDataExportNow,
+    updateGeneralUserSettings as apiUpdateGeneralUserSettings,
+    updateScheduledExportSettings as apiUpdateScheduledExportSettings,
     updateUserSettings as apiUpdateUserSettings
 } from "./services/userSettingsService";
 
@@ -154,6 +156,31 @@ function App() {
         return savedSettings;
     };
 
+    const handleGeneralUserSettingsChange = async (nextSettings) => {
+        const savedSettings = await apiUpdateGeneralUserSettings({
+            currentOrganizationId: nextSettings.currentOrganizationId,
+            dailyHoursLimit: nextSettings.dailyHoursLimit,
+            reportsSaveDirectory: nextSettings.reportsSaveDirectory
+        });
+
+        setUserSettings(savedSettings);
+        setUserSettingsError("");
+        return savedSettings;
+    };
+
+    const handleScheduledExportSettingsChange = async (nextSettings) => {
+        const savedSettings = await apiUpdateScheduledExportSettings({
+            scheduledExportEnabled: nextSettings.scheduledExportEnabled,
+            scheduledExportFolder: nextSettings.scheduledExportFolder,
+            scheduledExportTime: nextSettings.scheduledExportTime,
+            scheduledExportRetentionDays: nextSettings.scheduledExportRetentionDays
+        });
+
+        setUserSettings(savedSettings);
+        setUserSettingsError("");
+        return savedSettings;
+    };
+
     const handleRunScheduledExportNow = async () => {
         const result = await runScheduledFullDataExportNow();
         if (result.settings) {
@@ -231,14 +258,10 @@ function App() {
                     <OrganizationsPage
                         currentOrganizationId={currentOrganizationId}
                         onCurrentOrganizationChange={async nextCurrentOrganizationId => {
-                            await handleUserSettingsChange({
+                            await handleGeneralUserSettingsChange({
                                 currentOrganizationId: nextCurrentOrganizationId,
                                 dailyHoursLimit: userSettings.dailyHoursLimit,
-                                reportsSaveDirectory: userSettings.reportsSaveDirectory,
-                                scheduledExportEnabled: userSettings.scheduledExportEnabled,
-                                scheduledExportFolder: userSettings.scheduledExportFolder,
-                                scheduledExportTime: userSettings.scheduledExportTime,
-                                scheduledExportRetentionDays: userSettings.scheduledExportRetentionDays
+                                reportsSaveDirectory: userSettings.reportsSaveDirectory
                             });
                         }}
                     />
@@ -251,10 +274,6 @@ function App() {
                             userSettings.currentOrganizationId ?? "no-org",
                             userSettings.dailyHoursLimit ?? "no-limit",
                             userSettings.reportsSaveDirectory ?? "no-reports-dir",
-                            userSettings.scheduledExportEnabled ? "scheduled-on" : "scheduled-off",
-                            userSettings.scheduledExportFolder ?? "no-scheduled-dir",
-                            userSettings.scheduledExportTime ?? "no-scheduled-time",
-                            userSettings.scheduledExportRetentionDays ?? "no-retention",
                             softwareProducts.map(product => product.id).join("-")
                         ].join(":")}
                         organizations={organizations}
@@ -264,13 +283,20 @@ function App() {
                         userSettingsError={userSettingsError}
                         softwareProductsLoading={softwareProductsLoading}
                         softwareProductsError={softwareProductsError}
-                        onUserSettingsChange={handleUserSettingsChange}
-                        onRunScheduledExportNow={handleRunScheduledExportNow}
+                        onUserSettingsChange={handleGeneralUserSettingsChange}
                         onSoftwareProductsChange={handleSoftwareProductsChange}
                     />
                 );
             case "administration":
-                return <AdministrationPage />;
+                return (
+                    <AdministrationPage
+                        userSettings={userSettings}
+                        userSettingsLoading={userSettingsLoading}
+                        userSettingsError={userSettingsError}
+                        onScheduledExportSettingsChange={handleScheduledExportSettingsChange}
+                        onRunScheduledExportNow={handleRunScheduledExportNow}
+                    />
+                );
             default:
                 return (
                     <TimeTrackingPage
