@@ -879,53 +879,42 @@ textarea:focus {
 }
 
 .administration-page-stack {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
-  display: grid;
-  grid-template-rows: auto;
-  gap: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .administration-import-grid {
   display: grid;
-  gap: 12px;
+  gap: 6px;
 }
 
-.administration-file-picker {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
+.administration-main .tracking-panel-body {
+  flex: 0 0 auto;
+  padding: 10px 14px;
+  overflow: visible;
+}
+
+.administration-main .tracking-modal-text {
+  margin: 0;
+}
+
+.administration-wide-field {
+  max-width: 652px;
+}
+
+.administration-main .settings-scheduled-grid {
+  gap: 8px 12px;
+}
+
+.administration-main .settings-inline-checkbox-control {
+  min-height: 28px;
 }
 
 .administration-file-input {
   display: none;
-}
-
-.administration-selected-file {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  min-width: 0;
-  color: #344054;
-  font-size: 13px;
-  line-height: 1.35;
-}
-
-.administration-selected-file-label {
-  font-weight: 600;
-}
-
-.administration-selected-file-value {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.administration-import-actions {
-  display: flex;
-  justify-content: flex-end;
 }
 
 .administration-help-button {

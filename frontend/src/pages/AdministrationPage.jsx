@@ -284,6 +284,18 @@ export default function AdministrationPage({
         }
     };
 
+    const handleClearFile = () => {
+        setSelectedFile(null);
+        setValidationResult(null);
+        setValidationFailureOpen(false);
+        setSuccessOpen(false);
+        setMessage("");
+
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
+    };
+
     const handleImportData = async () => {
         if (!selectedFile) {
             return;
@@ -480,28 +492,44 @@ export default function AdministrationPage({
                         <div>
                             <h3>Full Data Import</h3>
                         </div>
-                        <button
-                            type="button"
-                            className="administration-help-button"
-                            onClick={handleOpenHelp}
-                            title="Full data import format and requirements"
-                            aria-label="Full data import format and requirements"
-                        >
-                            ?
-                        </button>
+                        <div className="settings-user-actions">
+                            <button
+                                type="button"
+                                className="administration-help-button"
+                                onClick={handleOpenHelp}
+                                title="Full data import format and requirements"
+                                aria-label="Full data import format and requirements"
+                            >
+                                ?
+                            </button>
+                            <button
+                                type="button"
+                                className="tracking-save-button"
+                                onClick={handleImportData}
+                                disabled={!selectedFile || busy}
+                            >
+                                Full Data Import
+                            </button>
+                        </div>
                     </div>
 
                     <div className="tracking-panel-body">
                         <div className="administration-import-grid">
-                            <label className="tracking-modal-field settings-directory-field">
+                            <label className="tracking-modal-field settings-directory-field administration-wide-field">
                                 <span>Excel File</span>
-                                <div className="administration-file-picker">
+                                <div className="settings-directory-control">
                                     <input
                                         ref={fileInputRef}
                                         type="file"
                                         accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
                                         onChange={handleFileChange}
                                         className="administration-file-input"
+                                    />
+                                    <input
+                                        type="text"
+                                        value={selectedFile ? getFileName(selectedFile) : ""}
+                                        placeholder="No file selected"
+                                        readOnly
                                     />
                                     <button
                                         type="button"
@@ -511,24 +539,17 @@ export default function AdministrationPage({
                                     >
                                         Choose File
                                     </button>
+                                    <button
+                                        type="button"
+                                        className="selector-clear-button settings-directory-clear-button"
+                                        onClick={handleClearFile}
+                                        aria-label="Clear selected Excel file"
+                                        disabled={busy || !selectedFile}
+                                    >
+                                        x
+                                    </button>
                                 </div>
                             </label>
-
-                            <div className="administration-selected-file">
-                                <span className="administration-selected-file-label">Selected File:</span>
-                                <span className="administration-selected-file-value">{getFileName(selectedFile)}</span>
-                            </div>
-
-                            <div className="administration-import-actions">
-                                <button
-                                    type="button"
-                                    className="tracking-save-button"
-                                    onClick={handleImportData}
-                                    disabled={!selectedFile || busy}
-                                >
-                                    Full Data Import
-                                </button>
-                            </div>
 
                             {message ? (
                                 <div className="tracking-status-banner administration-status-banner">{message}</div>
@@ -542,6 +563,16 @@ export default function AdministrationPage({
                         <div>
                             <h3>Full Data Export</h3>
                         </div>
+                        <div className="settings-user-actions">
+                            <button
+                                type="button"
+                                className="tracking-save-button"
+                                onClick={handleFullDataExport}
+                                disabled={exportBusy}
+                            >
+                                Full Data Export
+                            </button>
+                        </div>
                     </div>
 
                     <div className="tracking-panel-body">
@@ -549,17 +580,6 @@ export default function AdministrationPage({
                             <p className="tracking-modal-text">
                                 Download all current user data as an Excel file compatible with Full Data Import.
                             </p>
-
-                            <div className="administration-import-actions">
-                                <button
-                                    type="button"
-                                    className="tracking-save-button"
-                                    onClick={handleFullDataExport}
-                                    disabled={exportBusy}
-                                >
-                                    Full Data Export
-                                </button>
-                            </div>
                         </div>
                     </div>
                 </section>
