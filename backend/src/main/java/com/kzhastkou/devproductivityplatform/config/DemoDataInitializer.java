@@ -103,6 +103,7 @@ public class DemoDataInitializer implements ApplicationRunner {
                 softwareProduct,
                 "DPP-1",
                 "Backend Development",
+                "Implement REST APIs for organizations, clients and projects.",
                 16.0
         );
         Task frontendTask = createTask(
@@ -113,6 +114,7 @@ public class DemoDataInitializer implements ApplicationRunner {
                 softwareProduct,
                 "DPP-2",
                 "Frontend Development",
+                "Create React UI pages and modal editors.",
                 16.0
         );
         Task dockerTask = createTask(
@@ -123,6 +125,7 @@ public class DemoDataInitializer implements ApplicationRunner {
                 softwareProduct,
                 "DPP-3",
                 "Docker Setup",
+                "Containerize application using Docker Compose and Nginx.",
                 8.0
         );
 
@@ -154,6 +157,7 @@ public class DemoDataInitializer implements ApplicationRunner {
             SoftwareProduct softwareProduct,
             String taskNumber,
             String name,
+            String comment,
             Double estimatedHours
     ) {
         return taskRepository.save(Task.builder()
@@ -167,7 +171,7 @@ public class DemoDataInitializer implements ApplicationRunner {
                 .createdAt(DEMO_WORKLOG_DATE)
                 .estimatedHours(estimatedHours)
                 .completed(false)
-                .comment("")
+                .comment(comment)
                 .description("")
                 .implementationDetails("")
                 .taskLink("")
