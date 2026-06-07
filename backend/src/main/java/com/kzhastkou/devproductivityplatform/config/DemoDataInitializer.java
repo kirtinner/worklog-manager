@@ -130,9 +130,9 @@ public class DemoDataInitializer implements ApplicationRunner {
         );
 
         timeEntryRepository.saveAll(List.of(
-                createTimeEntry(developer, organization, backendTask, 4.0),
-                createTimeEntry(developer, organization, frontendTask, 3.0),
-                createTimeEntry(developer, organization, dockerTask, 1.0)
+                createTimeEntry(developer, organization, backendTask, 4.0, "Implemented REST API endpoints and completed service layer integration."),
+                createTimeEntry(developer, organization, frontendTask, 3.0, "Created UI components and connected frontend forms to backend APIs."),
+                createTimeEntry(developer, organization, dockerTask, 1.0, "Configured Docker Compose and verified container startup.")
         ));
 
         userSettingsRepository.save(UserSettings.builder()
@@ -178,14 +178,14 @@ public class DemoDataInitializer implements ApplicationRunner {
                 .build());
     }
 
-    private TimeEntry createTimeEntry(Developer developer, Organization organization, Task task, Double hours) {
+    private TimeEntry createTimeEntry(Developer developer, Organization organization, Task task, Double hours, String comment) {
         return TimeEntry.builder()
                 .developer(developer)
                 .organization(organization)
                 .task(task)
                 .date(DEMO_WORKLOG_DATE)
                 .hours(hours)
-                .comment("")
+                .comment(comment)
                 .build();
     }
 }

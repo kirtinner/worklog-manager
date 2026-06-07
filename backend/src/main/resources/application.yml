@@ -18,6 +18,9 @@ spring:
 server:
   port: 8080
 
+jwt:
+  secret: ${JWT_SECRET:my-super-secret-key-my-super-secret-key}
+
 logging:
   level:
     org.springframework.dao: DEBUG
@@ -29,6 +32,6 @@ app:
     scheduled:
       enabled: false
       cron: "0 0 2 * * *"
-      export-dir: "D:/YandexDisk/DevProductivityPlatform/Backups"
+      export-dir: ""
       retention-days: 30
       developer-id: 1

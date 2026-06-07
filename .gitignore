@@ -2,6 +2,7 @@
 # IntelliJ IDEA
 # =========================
 .idea/
+**/.idea/
 *.iws
 *.iml
 *.ipr
@@ -22,6 +23,7 @@ Thumbs.db
 # Logs
 # =========================
 logs/
+backend/logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -55,6 +57,7 @@ frontend/node_modules/
 frontend/dist/
 frontend/dist-ssr/
 frontend/.vite/
+frontend/.vite-temp/
 
 # =========================
 # Environment files
@@ -62,3 +65,23 @@ frontend/.vite/
 .env
 .env.*
 !.env.example
+
+# =========================
+# Excel / exports / backups
+# =========================
+*.xlsx
+*.xls
+*.xlsm
+*.csv
+
+backup/
+backups/
+exports/
+imports/
+
+*.bak
+*.backup
+*.dump
+
+*.sql
+*.sql.gz

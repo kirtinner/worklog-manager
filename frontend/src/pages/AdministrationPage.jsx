@@ -627,7 +627,7 @@ export default function AdministrationPage({
                             <DirectorySettingField
                                 label="Export Folder"
                                 value={scheduledExportFolder}
-                                placeholder="D:/YandexDisk/DevProductivityPlatform/Backups"
+                                placeholder="Select an export folder"
                                 disabled={userSettingsLoading || scheduledExportSaving}
                                 clearLabel="Clear export folder"
                                 onChange={setScheduledExportFolder}
