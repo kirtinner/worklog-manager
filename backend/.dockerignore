@@ -1,0 +1,15 @@
+.git
+.idea
+.vscode
+target
+logs
+*.log
+*.tmp
+*.bak
+*.backup
+*.old
+*.orig
+*.xls
+*.xlsx
+*.xlsm
+*.csv
