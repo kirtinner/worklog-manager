@@ -119,6 +119,131 @@ textarea:focus {
   outline-offset: 1px;
 }
 
+.app-button,
+.app-button-primary,
+.app-button-secondary,
+.app-button-danger,
+.app-button-clear,
+.tracking-save-button,
+.tracking-settings-button,
+.tracking-modal-button,
+.organizations-delete-button,
+.selector-clear-button,
+.settings-directory-clear-button,
+.administration-help-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--app-button-primary-border);
+  border-radius: 6px;
+  background: var(--app-button-primary-bg);
+  color: var(--app-button-primary-text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  text-align: center;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease;
+}
+
+.app-button:hover:not(:disabled),
+.app-button-primary:hover:not(:disabled),
+.tracking-save-button:hover:not(:disabled),
+.tracking-settings-button:hover:not(:disabled),
+.tracking-modal-button:hover:not(:disabled),
+.selector-clear-button:hover:not(:disabled),
+.settings-directory-clear-button:hover:not(:disabled),
+.administration-help-button:hover:not(:disabled) {
+  border-color: var(--app-button-primary-hover-border);
+  background: var(--app-button-primary-hover-bg);
+}
+
+.app-button:focus-visible,
+.app-button-primary:focus-visible,
+.app-button-secondary:focus-visible,
+.app-button-danger:focus-visible,
+.app-button-clear:focus-visible,
+.tracking-save-button:focus-visible,
+.tracking-settings-button:focus-visible,
+.tracking-modal-button:focus-visible,
+.organizations-delete-button:focus-visible,
+.selector-clear-button:focus-visible,
+.settings-directory-clear-button:focus-visible,
+.administration-help-button:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 1px;
+}
+
+.app-button:disabled,
+.app-button-primary:disabled,
+.app-button-secondary:disabled,
+.app-button-danger:disabled,
+.app-button-clear:disabled,
+.tracking-save-button:disabled,
+.tracking-settings-button:disabled,
+.tracking-modal-button:disabled,
+.organizations-delete-button:disabled,
+.selector-clear-button:disabled,
+.settings-directory-clear-button:disabled,
+.administration-help-button:disabled {
+  opacity: var(--app-button-disabled-opacity);
+  cursor: default;
+}
+
+.app-button-primary {
+  border-color: var(--app-button-primary-border);
+  background: var(--app-button-primary-bg);
+  color: var(--app-button-primary-text);
+}
+
+.app-button-secondary,
+.tracking-modal-button-secondary {
+  border-color: var(--app-button-secondary-border);
+  background: var(--app-button-secondary-bg);
+  color: var(--app-button-secondary-text);
+}
+
+.app-button-secondary:hover:not(:disabled),
+.tracking-modal-button-secondary:hover:not(:disabled) {
+  border-color: var(--app-button-secondary-hover-border);
+  background: var(--app-button-secondary-hover-bg);
+}
+
+.app-button-danger,
+.organizations-delete-button {
+  border-color: var(--app-button-danger-border);
+  background: var(--app-button-danger-bg);
+  color: var(--app-button-danger-text);
+}
+
+.app-button-danger:hover:not(:disabled),
+.organizations-delete-button:hover:not(:disabled) {
+  border-color: var(--app-button-danger-hover-border);
+  background: var(--app-button-danger-hover-bg);
+}
+
+.app-button-clear {
+  border-color: transparent;
+  background: transparent;
+  color: var(--app-text-muted);
+}
+
+.app-button-clear:hover:not(:disabled) {
+  border-color: var(--app-button-primary-hover-border);
+  background: var(--app-button-primary-hover-bg);
+  color: var(--app-text-default);
+}
+
+.app-button-small {
+  padding: 5px 8px;
+  border-radius: 5px;
+  font-size: 12px;
+}
+
 .actions {
   display: flex;
   gap: 10px;
@@ -1335,7 +1460,7 @@ textarea:focus {
 }
 
 .tracking-save-button:hover:not(:disabled),
-.tracking-settings-button:hover {
+.tracking-settings-button:hover:not(:disabled) {
   border-color: var(--app-button-primary-hover-border);
   background: var(--app-button-primary-hover-bg);
 }
@@ -1760,7 +1885,7 @@ textarea:focus {
   cursor: pointer;
 }
 
-.tracking-modal-button:hover {
+.tracking-modal-button:hover:not(:disabled) {
   border-color: var(--app-button-primary-hover-border);
   background: var(--app-button-primary-hover-bg);
 }

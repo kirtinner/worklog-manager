@@ -37,22 +37,39 @@
 .worklog-toolbar-edit,
 .worklog-toolbar-delete,
 .worklog-toolbar-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   padding: 5px 8px;
   border: 1px solid var(--app-button-primary-border);
   border-radius: 5px;
   background: var(--app-button-primary-bg);
   color: var(--app-button-primary-text);
+  font: inherit;
   font-size: 12px;
   font-weight: 600;
+  line-height: 1;
+  text-align: center;
   cursor: pointer;
+  box-sizing: border-box;
+  transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease;
 }
 
-.worklog-toolbar-add:hover,
-.worklog-toolbar-edit:hover,
+.worklog-toolbar-add:hover:not(:disabled),
+.worklog-toolbar-edit:hover:not(:disabled),
 .worklog-toolbar-delete:hover:not(:disabled),
-.worklog-toolbar-secondary:hover {
+.worklog-toolbar-secondary:hover:not(:disabled) {
   border-color: var(--app-button-primary-hover-border);
   background: var(--app-button-primary-hover-bg);
+}
+
+.worklog-toolbar-add:focus-visible,
+.worklog-toolbar-edit:focus-visible,
+.worklog-toolbar-delete:focus-visible,
+.worklog-toolbar-secondary:focus-visible {
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 1px;
 }
 
 .worklog-toolbar-delete-separated {
