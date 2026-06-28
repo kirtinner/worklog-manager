@@ -5,10 +5,60 @@ body {
 }
 
 :root {
+  --app-page-bg: #eef1f5;
+  --app-panel-bg: #ffffff;
+  --app-panel-border: #dfe4ec;
+  --app-panel-shadow: rgba(16, 24, 40, 0.06);
+  --app-surface-bg: #fbfcfe;
+  --app-surface-hover-bg: #f2f4f7;
+  --app-text-primary: #1f2933;
+  --app-text-heading: #202c38;
+  --app-text-default: #344054;
+  --app-text-muted: #667085;
+  --app-control-border: #d9dee7;
+  --app-control-hover-border: #b8c2d0;
   --app-selection-bg: #e4effd;
   --app-selection-border: #7aa7d9;
   --app-selection-accent: #3f7fb8;
+  --app-selection-text: #2f3b4a;
   --app-focus-ring: rgba(63, 127, 184, 0.28);
+  --app-editor-header-bg: #dcebf9;
+  --app-editor-header-border: #b9d2ec;
+  --app-editor-header-text: #202c38;
+  --app-editor-header-shadow: rgba(28, 85, 135, 0.12);
+  --app-modal-header-bg: #fbfcfe;
+  --app-modal-header-border: #e5e9f0;
+  --app-modal-header-text: #202c38;
+  --app-button-primary-bg: #fbfcfe;
+  --app-button-primary-text: #344054;
+  --app-button-primary-border: #d9dee7;
+  --app-button-primary-hover-bg: #f2f4f7;
+  --app-button-primary-hover-border: #b8c2d0;
+  --app-button-disabled-opacity: 0.45;
+  --app-button-secondary-bg: #ffffff;
+  --app-button-secondary-text: #344054;
+  --app-button-secondary-border: #d9dee7;
+  --app-button-secondary-hover-bg: #f2f4f7;
+  --app-button-secondary-hover-border: #b8c2d0;
+  --app-button-danger-bg: #fbfcfe;
+  --app-button-danger-text: #8a3b3b;
+  --app-button-danger-border: #d9dee7;
+  --app-button-danger-hover-bg: #fdf5f5;
+  --app-button-danger-hover-border: #d2a6a6;
+  --app-table-header-bg: #eef2f6;
+  --app-table-header-text: #344054;
+  --app-table-header-border: #dfe4ec;
+  --app-table-row-border: #e5e9f0;
+  --app-table-row-hover-bg: #f7f9fc;
+  --app-error-bg: #fdf5f5;
+  --app-error-border: #e5c8c8;
+  --app-error-text: #8a3b3b;
+  --app-warning-bg: #f7f4ee;
+  --app-warning-border: #d7c6af;
+  --app-warning-text: #7a6648;
+  --app-success-bg: #f2faf3;
+  --app-success-border: #bfd8c6;
+  --app-success-text: #2d6a3a;
 }
 
 .container {
@@ -149,8 +199,8 @@ textarea:focus {
   height: 100vh;
   display: grid;
   grid-template-columns: 300px minmax(0, 1fr);
-  background: #eef1f5;
-  color: #1f2933;
+  background: var(--app-page-bg);
+  color: var(--app-text-primary);
   overflow: hidden;
 }
 
@@ -160,15 +210,15 @@ textarea:focus {
   flex-direction: column;
   gap: 16px;
   padding: 20px;
-  background: #f8fafc;
-  border-right: 1px solid #d9dee7;
+  background: var(--app-surface-bg);
+  border-right: 1px solid var(--app-control-border);
   box-sizing: border-box;
   overflow: hidden;
 }
 
 .app-shell-brand {
   padding-bottom: 14px;
-  border-bottom: 1px solid #d9dee7;
+  border-bottom: 1px solid var(--app-control-border);
 }
 
 .app-shell-brand-title {
@@ -195,7 +245,7 @@ textarea:focus {
 
 .app-shell-nav-section-title {
   margin-bottom: 2px;
-  color: #667085;
+  color: var(--app-text-muted);
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0;
@@ -206,10 +256,10 @@ textarea:focus {
 .app-shell-logout {
   width: 100%;
   padding: 8px 10px;
-  border: 1px solid #d9dee7;
+  border: 1px solid var(--app-button-primary-border);
   border-radius: 6px;
-  background: #fbfcfe;
-  color: #344054;
+  background: var(--app-button-primary-bg);
+  color: var(--app-button-primary-text);
   font-size: 13px;
   font-weight: 600;
   text-align: left;
@@ -218,8 +268,8 @@ textarea:focus {
 
 .app-shell-nav-item:hover,
 .app-shell-logout:hover {
-  border-color: #b8c2d0;
-  background: #f2f4f7;
+  border-color: var(--app-button-primary-hover-border);
+  background: var(--app-button-primary-hover-bg);
 }
 
 .app-shell-nav-item-active {
@@ -231,7 +281,7 @@ textarea:focus {
 .app-shell-footer {
   margin-top: auto;
   padding-top: 12px;
-  border-top: 1px solid #d9dee7;
+  border-top: 1px solid var(--app-control-border);
   display: grid;
   gap: 8px;
 }
@@ -243,7 +293,7 @@ textarea:focus {
 .app-shell-footer-separator {
   width: 100%;
   height: 1px;
-  background: #d9dee7;
+  background: var(--app-control-border);
 }
 
 .app-shell-footer-separator-compact {
@@ -280,13 +330,20 @@ textarea:focus {
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
+  transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease;
 }
 
-.login-mode-switch button:hover:not(:disabled),
-.login-mode-switch-active {
-  background: #ffffff;
+.login-mode-switch button:not(.login-mode-switch-active):hover:not(:disabled) {
+  background: #eef7ff;
   color: #1f2937;
   box-shadow: 0 1px 2px rgba(31, 41, 55, 0.08);
+  cursor: pointer;
+}
+
+.login-mode-switch .login-mode-switch-active {
+  background: var(--app-editor-header-bg);
+  color: var(--app-editor-header-text);
+  box-shadow: inset 0 0 0 1px var(--app-editor-header-border), 0 1px 3px var(--app-editor-header-shadow);
 }
 
 .login-mode-switch button:disabled {
@@ -341,7 +398,7 @@ textarea:focus {
 
 .app-master-data-subtitle {
   margin: 4px 0 0;
-  color: #667085;
+  color: var(--app-text-muted);
   font-size: 12px;
   line-height: 1.35;
 }
@@ -358,9 +415,9 @@ textarea:focus {
   top: 0;
   z-index: 1;
   padding: 8px 10px;
-  border-bottom: 1px solid #dfe4ec;
-  background: #eef2f6;
-  color: #344054;
+  border-bottom: 1px solid var(--app-table-header-border);
+  background: var(--app-table-header-bg);
+  color: var(--app-table-header-text);
   font-size: 12px;
   font-weight: 700;
   text-align: left;
@@ -368,23 +425,23 @@ textarea:focus {
 
 .app-master-data-table tbody td {
   padding: 6px 10px;
-  border-bottom: 1px solid #e5e9f0;
-  color: #344054;
+  border-bottom: 1px solid var(--app-table-row-border);
+  color: var(--app-text-default);
   vertical-align: middle;
   font-weight: 400;
 }
 
 .app-master-data-table tbody tr:hover {
-  background: #f7f9fc;
+  background: var(--app-table-row-hover-bg);
 }
 
 .app-master-data-input {
   width: 100%;
   padding: 6px 8px;
-  border: 1px solid #d9dee7;
+  border: 1px solid var(--app-control-border);
   border-radius: 6px;
-  background: #ffffff;
-  color: #1f2933;
+  background: var(--app-panel-bg);
+  color: var(--app-text-primary);
   font: inherit;
   font-weight: 400;
   box-sizing: border-box;
@@ -453,7 +510,7 @@ textarea:focus {
 
 .organizations-subtitle {
   margin: 4px 0 0;
-  color: #667085;
+  color: var(--app-text-muted);
   font-size: 12px;
   line-height: 1.35;
 }
@@ -531,28 +588,28 @@ textarea:focus {
 
 .organizations-delete-button {
   padding: 6px 9px;
-  border: 1px solid #d9dee7;
+  border: 1px solid var(--app-button-danger-border);
   border-radius: 6px;
-  background: #fbfcfe;
-  color: #8a3b3b;
+  background: var(--app-button-danger-bg);
+  color: var(--app-button-danger-text);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
 
 .organizations-delete-button:hover:not(:disabled) {
-  border-color: #d2a6a6;
-  background: #fdf5f5;
+  border-color: var(--app-button-danger-hover-border);
+  background: var(--app-button-danger-hover-bg);
 }
 
 .organizations-delete-button-separated {
   margin-left: 0;
   padding-left: 10px;
-  border-left: 1px solid #d9dee7;
+  border-left: 1px solid var(--app-control-border);
 }
 
 .organizations-delete-button:disabled {
-  opacity: 0.45;
+  opacity: var(--app-button-disabled-opacity);
   cursor: default;
 }
 
@@ -562,7 +619,7 @@ textarea:focus {
   min-height: 28px;
   padding: 6px 8px;
   box-sizing: border-box;
-  color: #344054;
+  color: var(--app-text-default);
 }
 
 .clients-panel-header {
@@ -579,10 +636,10 @@ textarea:focus {
   min-width: 0;
   margin-bottom: 14px;
   padding: 8px 14px;
-  border: 1px solid #b9d2ec;
+  border: 1px solid var(--app-editor-header-border);
   border-radius: 8px;
-  background: #dcebf9;
-  box-shadow: 0 1px 3px rgba(28, 85, 135, 0.12);
+  background: var(--app-editor-header-bg);
+  box-shadow: 0 1px 3px var(--app-editor-header-shadow);
   box-sizing: border-box;
 }
 
@@ -605,10 +662,10 @@ textarea:focus {
   width: 100%;
   min-height: 42px;
   padding: 12px 14px;
-  border: 1px solid #b9d2ec;
+  border: 1px solid var(--app-editor-header-border);
   border-radius: 8px;
-  background: #dcebf9;
-  box-shadow: 0 1px 3px rgba(28, 85, 135, 0.12);
+  background: var(--app-editor-header-bg);
+  box-shadow: 0 1px 3px var(--app-editor-header-shadow);
   box-sizing: border-box;
 }
 
@@ -618,7 +675,7 @@ textarea:focus {
 }
 
 .clients-filter-label {
-  color: #344054;
+  color: var(--app-text-default);
   font-size: 12px;
   font-weight: 400;
   white-space: nowrap;
@@ -628,10 +685,10 @@ textarea:focus {
   width: min(360px, 100%);
   min-width: 220px;
   padding: 6px 8px;
-  border: 1px solid #d9dee7;
+  border: 1px solid var(--app-control-border);
   border-radius: 6px;
-  background: #ffffff;
-  color: #1f2933;
+  background: var(--app-panel-bg);
+  color: var(--app-text-primary);
   font: inherit;
   font-weight: 400;
   box-sizing: border-box;
@@ -1250,28 +1307,28 @@ textarea:focus {
 
 .tracking-save-status {
   padding: 4px 8px;
-  border: 1px solid #d9dee7;
+  border: 1px solid var(--app-control-border);
   border-radius: 999px;
-  background: #fbfcfe;
-  color: #667085;
+  background: var(--app-surface-bg);
+  color: var(--app-text-muted);
   font-size: 12px;
   font-weight: 600;
   line-height: 1;
 }
 
 .tracking-save-status-dirty {
-  border-color: #d7c6af;
-  background: #f7f4ee;
-  color: #7a6648;
+  border-color: var(--app-warning-border);
+  background: var(--app-warning-bg);
+  color: var(--app-warning-text);
 }
 
 .tracking-save-button,
 .tracking-settings-button {
   padding: 6px 10px;
-  border: 1px solid #d9dee7;
+  border: 1px solid var(--app-button-primary-border);
   border-radius: 6px;
-  background: #fbfcfe;
-  color: #344054;
+  background: var(--app-button-primary-bg);
+  color: var(--app-button-primary-text);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -1279,12 +1336,12 @@ textarea:focus {
 
 .tracking-save-button:hover:not(:disabled),
 .tracking-settings-button:hover {
-  border-color: #b8c2d0;
-  background: #f2f4f7;
+  border-color: var(--app-button-primary-hover-border);
+  background: var(--app-button-primary-hover-bg);
 }
 
 .tracking-save-button:disabled {
-  opacity: 0.45;
+  opacity: var(--app-button-disabled-opacity);
   cursor: default;
 }
 
@@ -1298,24 +1355,24 @@ textarea:focus {
   flex: 0 0 auto;
   margin-bottom: 10px;
   padding: 6px 10px;
-  border: 1px solid #d9dee7;
+  border: 1px solid var(--app-control-border);
   border-radius: 6px;
-  background: #fbfcfe;
-  color: #344054;
+  background: var(--app-surface-bg);
+  color: var(--app-text-default);
   font-size: 12px;
   line-height: 1.3;
 }
 
 .tracking-status-banner-error {
-  border-color: #e5c8c8;
-  background: #fdf5f5;
-  color: #8a3b3b;
+  border-color: var(--app-error-border);
+  background: var(--app-error-bg);
+  color: var(--app-error-text);
 }
 
 .tracking-status-banner-success {
-  border-color: #bfd8c6;
-  background: #f2faf3;
-  color: #2d6a3a;
+  border-color: var(--app-success-border);
+  background: var(--app-success-bg);
+  color: var(--app-success-text);
 }
 
 .tracking-topbar h2 {
@@ -1325,7 +1382,7 @@ textarea:focus {
 
 .tracking-topbar p {
   margin: 4px 0 0;
-  color: #667085;
+  color: var(--app-text-muted);
   font-size: 13px;
 }
 
@@ -1343,10 +1400,10 @@ textarea:focus {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: #ffffff;
-  border: 1px solid #dfe4ec;
+  background: var(--app-panel-bg);
+  border: 1px solid var(--app-panel-border);
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.06);
+  box-shadow: 0 1px 3px var(--app-panel-shadow);
   overflow: hidden;
 }
 
@@ -1355,9 +1412,9 @@ textarea:focus {
   align-items: center;
   min-height: 42px;
   padding: 0 14px;
-  border-bottom: 1px solid #b9d2ec;
-  background: #dcebf9;
-  box-shadow: 0 1px 3px rgba(28, 85, 135, 0.12);
+  border-bottom: 1px solid var(--app-editor-header-border);
+  background: var(--app-editor-header-bg);
+  box-shadow: 0 1px 3px var(--app-editor-header-shadow);
 }
 
 .tracking-panel-header h3 {
@@ -1413,9 +1470,9 @@ textarea:focus {
   min-width: 28px;
   height: 28px;
   padding: 0 8px;
-  border: 1px solid #d9dee7;
+  border: 1px solid var(--app-button-primary-border);
   border-radius: 5px;
-  background: #fbfcfe;
+  background: var(--app-button-primary-bg);
   color: #475467;
   font-size: 12px;
   line-height: 1;
@@ -1423,13 +1480,13 @@ textarea:focus {
 }
 
 .tracking-calendar-nav-group button:hover {
-  border-color: #b8c2d0;
-  background: #f2f4f7;
+  border-color: var(--app-button-primary-hover-border);
+  background: var(--app-button-primary-hover-bg);
 }
 
 .tracking-calendar-current {
   text-align: center;
-  color: #344054;
+  color: var(--app-text-default);
   font-size: 13px;
   font-weight: 700;
   white-space: nowrap;
@@ -1442,7 +1499,7 @@ textarea:focus {
 
 .tracking-details-panel .tracking-panel-body,
 .tracking-summary-panel .tracking-panel-body {
-  background: #ffffff;
+  background: var(--app-panel-bg);
 }
 
 .tracking-mini-calendar {
@@ -1452,7 +1509,7 @@ textarea:focus {
 }
 
 .tracking-calendar-weekday {
-  color: #667085;
+  color: var(--app-text-muted);
   font-size: 11px;
   font-weight: 700;
   text-align: center;
@@ -1465,8 +1522,8 @@ textarea:focus {
   justify-content: center;
   border: 1px solid #e3e8ef;
   border-radius: 5px;
-  background: #f7f9fc;
-  color: #344054;
+  background: var(--app-table-row-hover-bg);
+  color: var(--app-text-default);
   font-family: inherit;
   font-size: 13px;
   line-height: 1;
@@ -1477,14 +1534,14 @@ textarea:focus {
 }
 
 .tracking-calendar-cell:hover:not(:disabled) {
-  border-color: #b8c2d0;
-  background: #eef2f6;
+  border-color: var(--app-control-hover-border);
+  background: var(--app-table-header-bg);
 }
 
 .tracking-calendar-cell-weekend {
   background: var(--app-selection-bg);
-  border-color: #d9dee7;
-  color: #2f3b4a;
+  border-color: var(--app-control-border);
+  color: var(--app-selection-text);
   box-shadow: inset 0 1px 0 #ffffff, inset 0 -1px 0 #c9ddf4;
 }
 
@@ -1537,7 +1594,7 @@ textarea:focus {
 
 .tracking-table-head {
   padding: 8px 10px;
-  background: #f2f4f7;
+  background: var(--app-button-primary-hover-bg);
   border-radius: 6px;
   color: #475467;
   font-size: 12px;
@@ -1563,9 +1620,9 @@ textarea:focus {
 
 .tracking-modal {
   width: min(360px, 100%);
-  border: 1px solid #d9dee7;
+  border: 1px solid var(--app-control-border);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--app-panel-bg);
   box-shadow: 0 16px 36px rgba(16, 24, 40, 0.14);
   overflow: hidden;
 }
@@ -1580,17 +1637,17 @@ textarea:focus {
 
 .tracking-modal-header {
   padding: 12px 14px 10px;
-  border-bottom: 1px solid #e5e9f0;
-  background: #fbfcfe;
+  border-bottom: 1px solid var(--app-modal-header-border);
+  background: var(--app-modal-header-bg);
 }
 
 .tracking-modal-editor .tracking-modal-header,
 .tracking-modal-task-editor .tracking-modal-header {
   min-height: 42px;
   padding: 0 14px;
-  border-bottom: 1px solid #b9d2ec;
-  background: #dcebf9;
-  box-shadow: 0 1px 3px rgba(28, 85, 135, 0.12);
+  border-bottom: 1px solid var(--app-editor-header-border);
+  background: var(--app-editor-header-bg);
+  box-shadow: 0 1px 3px var(--app-editor-header-shadow);
   display: flex;
   align-items: center;
 }
@@ -1608,7 +1665,7 @@ textarea:focus {
 .tracking-modal-list {
   margin: 0;
   padding-left: 18px;
-  color: #344054;
+  color: var(--app-text-default);
   font-size: 13px;
   line-height: 1.45;
 }
@@ -1621,7 +1678,7 @@ textarea:focus {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  color: #344054;
+  color: var(--app-text-default);
   font-size: 12px;
   font-weight: 400;
 }
@@ -1630,10 +1687,10 @@ textarea:focus {
 .tracking-modal-field textarea {
   width: 100%;
   padding: 6px 8px;
-  border: 1px solid #d9dee7;
+  border: 1px solid var(--app-control-border);
   border-radius: 6px;
-  background: #ffffff;
-  color: #1f2933;
+  background: var(--app-panel-bg);
+  color: var(--app-text-primary);
   font: inherit;
   font-weight: 400;
   line-height: 1.35;
@@ -1643,10 +1700,10 @@ textarea:focus {
 .tracking-modal-field select {
   width: 100%;
   padding: 6px 8px;
-  border: 1px solid #d9dee7;
+  border: 1px solid var(--app-control-border);
   border-radius: 6px;
-  background: #ffffff;
-  color: #1f2933;
+  background: var(--app-panel-bg);
+  color: var(--app-text-primary);
   font: inherit;
   font-weight: 400;
   line-height: 1.35;
@@ -1673,14 +1730,14 @@ textarea:focus {
 
 .tracking-modal-error {
   margin-top: 10px;
-  color: #8a3b3b;
+  color: var(--app-error-text);
   font-size: 12px;
   line-height: 1.35;
 }
 
 .tracking-modal-text {
   margin: 0;
-  color: #344054;
+  color: var(--app-text-default);
   font-size: 13px;
   line-height: 1.45;
 }
@@ -1694,22 +1751,22 @@ textarea:focus {
 
 .tracking-modal-button {
   padding: 6px 10px;
-  border: 1px solid #d9dee7;
+  border: 1px solid var(--app-button-primary-border);
   border-radius: 6px;
-  background: #fbfcfe;
-  color: #344054;
+  background: var(--app-button-primary-bg);
+  color: var(--app-button-primary-text);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
 
 .tracking-modal-button:hover {
-  border-color: #b8c2d0;
-  background: #f2f4f7;
+  border-color: var(--app-button-primary-hover-border);
+  background: var(--app-button-primary-hover-bg);
 }
 
 .tracking-modal-button-secondary {
-  background: #ffffff;
+  background: var(--app-button-secondary-bg);
 }
 
 .tracking-modal-task-editor {

@@ -7,7 +7,7 @@
   flex-direction: column;
   border: 1px solid #e3e8ef;
   border-radius: 6px;
-  background: #ffffff;
+  background: var(--app-panel-bg);
   overflow: hidden;
 }
 
@@ -18,12 +18,12 @@
   align-items: center;
   gap: 10px;
   padding: 6px 8px;
-  border-bottom: 1px solid #e5e9f0;
-  background: #fbfcfe;
+  border-bottom: 1px solid var(--app-modal-header-border);
+  background: var(--app-surface-bg);
 }
 
 .worklog-toolbar-title {
-  color: #344054;
+  color: var(--app-text-default);
   font-size: 12px;
   font-weight: 700;
 }
@@ -38,10 +38,10 @@
 .worklog-toolbar-delete,
 .worklog-toolbar-secondary {
   padding: 5px 8px;
-  border: 1px solid #d9dee7;
+  border: 1px solid var(--app-button-primary-border);
   border-radius: 5px;
-  background: #fbfcfe;
-  color: #344054;
+  background: var(--app-button-primary-bg);
+  color: var(--app-button-primary-text);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -51,24 +51,24 @@
 .worklog-toolbar-edit:hover,
 .worklog-toolbar-delete:hover:not(:disabled),
 .worklog-toolbar-secondary:hover {
-  border-color: #b8c2d0;
-  background: #f2f4f7;
+  border-color: var(--app-button-primary-hover-border);
+  background: var(--app-button-primary-hover-bg);
 }
 
 .worklog-toolbar-delete-separated {
   padding-left: 10px;
-  border-left: 1px solid #d9dee7;
+  border-left: 1px solid var(--app-control-border);
 }
 
 .worklog-toolbar-delete:disabled {
-  opacity: 0.45;
+  opacity: var(--app-button-disabled-opacity);
   cursor: default;
 }
 
 .worklog-toolbar-add:disabled,
 .worklog-toolbar-edit:disabled,
 .worklog-toolbar-secondary:disabled {
-  opacity: 0.45;
+  opacity: var(--app-button-disabled-opacity);
   cursor: default;
 }
 
@@ -133,7 +133,7 @@
 
 .worklog-table th {
   background: #dfe6ef;
-  color: #202c38;
+  color: var(--app-text-heading);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0;
@@ -212,7 +212,7 @@
   border-top: 2px solid #b7c1cf;
   border-bottom: none;
   background: #dfe6ef;
-  color: #202c38;
+  color: var(--app-text-heading);
   font-weight: 800;
   font-size: 12px;
   letter-spacing: 0;
@@ -226,7 +226,7 @@
 }
 
 .worklog-table tfoot td:first-child {
-  color: #202c38;
+  color: var(--app-text-heading);
 }
 
 .worklog-number-column {
@@ -256,12 +256,12 @@
 }
 
 .worklog-client {
-  color: #344054;
+  color: var(--app-text-default);
   font-weight: 600;
 }
 
 .worklog-task {
-  color: #1f2933;
+  color: var(--app-text-primary);
 }
 
 .worklog-inline-text {
@@ -288,10 +288,10 @@
   width: 100%;
   min-width: 0;
   padding: 0 5px;
-  border: 1px solid #d9dee7;
+  border: 1px solid var(--app-control-border);
   border-radius: 5px;
-  background: #ffffff;
-  color: #1f2933;
+  background: var(--app-panel-bg);
+  color: var(--app-text-primary);
   font: inherit;
   box-sizing: border-box;
 }
@@ -313,10 +313,10 @@
   width: 100%;
   min-width: 0;
   padding: 1px 5px;
-  border: 1px solid #d9dee7;
+  border: 1px solid var(--app-control-border);
   border-radius: 5px;
-  background: #ffffff;
-  color: #1f2933;
+  background: var(--app-panel-bg);
+  color: var(--app-text-primary);
   font: inherit;
   cursor: pointer;
   box-sizing: border-box;
@@ -324,8 +324,8 @@
 }
 
 .worklog-edit-ready:hover {
-  border-color: #b8c2d0;
-  background: #f8fafc;
+  border-color: var(--app-control-hover-border);
+  background: var(--app-surface-hover-bg);
 }
 
 .worklog-hours-input {
@@ -334,8 +334,8 @@
   padding: 1px 5px;
   border: 1px solid #98a2b3;
   border-radius: 5px;
-  background: #ffffff;
-  color: #1f2933;
+  background: var(--app-panel-bg);
+  color: var(--app-text-primary);
   font: inherit;
   text-align: right;
   box-sizing: border-box;
@@ -361,7 +361,7 @@
   flex-direction: column;
   border: 1px solid #e3e8ef;
   border-radius: 6px;
-  background: #ffffff;
+  background: var(--app-panel-bg);
   overflow: hidden;
 }
 
@@ -406,7 +406,7 @@
   top: 0;
   z-index: 2;
   background: #dfe6ef;
-  color: #202c38;
+  color: var(--app-text-heading);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0;
@@ -449,7 +449,7 @@
   border-top: 2px solid #b7c1cf;
   border-bottom: none;
   background: #dfe6ef;
-  color: #202c38;
+  color: var(--app-text-heading);
   font-weight: 800;
   font-size: 12px;
   letter-spacing: 0;
@@ -458,11 +458,11 @@
 
 .monthly-summary-footer-row td {
   background: #dfe6ef;
-  color: #202c38;
+  color: var(--app-text-heading);
 }
 
 .monthly-summary-footer-row td:first-child {
-  color: #202c38;
+  color: var(--app-text-heading);
 }
 
 .task-details-panel {
@@ -478,7 +478,7 @@
   padding: 12px;
   border: 1px solid #e3e8ef;
   border-radius: 6px;
-  background: #fbfcfe;
+  background: var(--app-surface-bg);
   overflow: auto;
   box-sizing: border-box;
 }
@@ -490,7 +490,7 @@
   padding: 0;
   border: 0;
   background: transparent;
-  color: #344054;
+  color: var(--app-text-default);
   font: inherit;
   font-size: 13px;
   font-weight: 400;
@@ -522,19 +522,19 @@
   padding: 16px;
   border: 1px dashed #cfd7e3;
   border-radius: 6px;
-  background: #fbfcfe;
+  background: var(--app-surface-bg);
   box-sizing: border-box;
 }
 
 .task-details-empty-title {
-  color: #344054;
+  color: var(--app-text-default);
   font-size: 14px;
   font-weight: 700;
 }
 
 .task-details-empty-text {
   margin-top: 4px;
-  color: #667085;
+  color: var(--app-text-muted);
   font-size: 13px;
 }
 .organizations-panel-header {
