@@ -11,6 +11,7 @@ import SettingsPage from "./pages/SettingsPage";
 import TasksPage from "./pages/TasksPage";
 import TimeTrackingPage from "./pages/TimeTrackingPage";
 import { DEFAULT_USER_SETTINGS, UserSettingsContext } from "./context/UserSettingsContext";
+import { getCurrentUser, changePassword as apiChangePassword } from "./services/authService";
 import { getOrganizations } from "./services/organizationsService";
 import { getSoftwareProducts } from "./services/softwareProductsService";
 import {
@@ -72,6 +73,7 @@ function App() {
     const [userSettings, setUserSettings] = useState(DEFAULT_USER_SETTINGS);
     const [userSettingsLoading, setUserSettingsLoading] = useState(false);
     const [userSettingsError, setUserSettingsError] = useState("");
+    const [currentUser, setCurrentUser] = useState(null);
     const [softwareProductsLoading, setSoftwareProductsLoading] = useState(false);
     const [softwareProductsError, setSoftwareProductsError] = useState("");
     const [reportsResetToken, setReportsResetToken] = useState(0);
@@ -93,10 +95,12 @@ function App() {
             setSoftwareProductsError("");
 
             const [
+                currentUserResult,
                 organizationsResult,
                 softwareProductsResult,
                 userSettingsResult
             ] = await Promise.allSettled([
+                getCurrentUser(),
                 getOrganizations(),
                 getSoftwareProducts(),
                 getUserSettings()
@@ -104,6 +108,12 @@ function App() {
 
             if (!active) {
                 return;
+            }
+
+            if (currentUserResult.status === "fulfilled") {
+                setCurrentUser(currentUserResult.value);
+            } else {
+                setCurrentUser(null);
             }
 
             if (organizationsResult.status === "fulfilled") {
@@ -190,6 +200,12 @@ function App() {
         return result;
     };
 
+    const handleChangePassword = async (payload) => {
+        const updatedUser = await apiChangePassword(payload);
+        setCurrentUser(updatedUser);
+        return updatedUser;
+    };
+
     const handleSoftwareProductsChange = (nextSoftwareProducts) => {
         setSoftwareProducts(nextSoftwareProducts);
         setSoftwareProductsError("");
@@ -216,6 +232,7 @@ function App() {
         navigate("/time-tracking", { replace: true });
         setOrganizations([]);
         setSoftwareProducts([]);
+        setCurrentUser(null);
         setUserSettings(DEFAULT_USER_SETTINGS);
         setUserSettingsError("");
         setSoftwareProductsError("");
@@ -284,11 +301,13 @@ function App() {
                         organizations={organizations}
                         softwareProducts={softwareProducts}
                         userSettings={userSettings}
+                        currentUser={currentUser}
                         userSettingsLoading={userSettingsLoading}
                         userSettingsError={userSettingsError}
                         softwareProductsLoading={softwareProductsLoading}
                         softwareProductsError={softwareProductsError}
                         onUserSettingsChange={handleGeneralUserSettingsChange}
+                        onChangePassword={handleChangePassword}
                         onSoftwareProductsChange={handleSoftwareProductsChange}
                     />
                 );
@@ -325,6 +344,7 @@ function App() {
                 activePage={page}
                 onNavigate={isAuth ? navigateToPage : () => {}}
                 onLogout={isAuth ? logout : () => {}}
+                currentUser={currentUser}
             >
                 {isAuth ? (
                     <Routes>

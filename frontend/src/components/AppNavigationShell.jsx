@@ -1,4 +1,4 @@
-export default function AppNavigationShell({ activePage, onNavigate, onLogout, children }) {
+export default function AppNavigationShell({ activePage, onNavigate, onLogout, currentUser, children }) {
     const mainItems = [
         { key: "time-tracking", label: "Time Tracking" },
         { key: "reports", label: "Reports" }
@@ -81,6 +81,11 @@ export default function AppNavigationShell({ activePage, onNavigate, onLogout, c
                         Administration
                     </button>
                     <div className="app-shell-footer-gap" aria-hidden="true" />
+                    {currentUser?.email ? (
+                        <div className="app-shell-current-user" title={currentUser.email}>
+                            {currentUser.email}
+                        </div>
+                    ) : null}
                     <button type="button" className="app-shell-logout" onClick={onLogout}>
                         Logout
                     </button>

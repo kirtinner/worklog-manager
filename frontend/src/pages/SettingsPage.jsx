@@ -15,18 +15,24 @@ function getApiErrorMessage(error, fallbackMessage) {
 export default function SettingsPage({
     organizations = [],
     softwareProducts = [],
+    currentUser = null,
     userSettings = { currentOrganizationId: null, dailyHoursLimit: 8, reportsSaveDirectory: "" },
     userSettingsLoading = false,
     userSettingsError = "",
     softwareProductsLoading = false,
     softwareProductsError = "",
     onUserSettingsChange = async () => userSettings,
+    onChangePassword = async () => currentUser,
     onSoftwareProductsChange = () => {}
 }) {
     const [settingsDraftLimit, setSettingsDraftLimit] = useState(String(userSettings.dailyHoursLimit ?? 8));
     const [settingsDraftOrganizationId, setSettingsDraftOrganizationId] = useState(String(userSettings.currentOrganizationId ?? ""));
     const [settingsDraftReportsSaveDirectory, setSettingsDraftReportsSaveDirectory] = useState(userSettings.reportsSaveDirectory ?? "");
     const [settingsSaving, setSettingsSaving] = useState(false);
+    const [currentPassword, setCurrentPassword] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [confirmNewPassword, setConfirmNewPassword] = useState("");
+    const [passwordSaving, setPasswordSaving] = useState(false);
     const [resultDialog, setResultDialog] = useState(null);
 
     useEffect(() => {
@@ -100,6 +106,32 @@ export default function SettingsPage({
         setSettingsDraftLimit(String(userSettings.dailyHoursLimit ?? 8));
         setSettingsDraftOrganizationId(String(userSettings.currentOrganizationId ?? ""));
         setSettingsDraftReportsSaveDirectory(userSettings.reportsSaveDirectory ?? "");
+    };
+
+    const handleChangePassword = async () => {
+        setResultDialog(null);
+        setPasswordSaving(true);
+
+        try {
+            await onChangePassword({
+                currentPassword,
+                newPassword,
+                confirmNewPassword
+            });
+            setCurrentPassword("");
+            setNewPassword("");
+            setConfirmNewPassword("");
+            setResultDialog({ success: true, title: "Account", message: "Password changed successfully." });
+        } catch (error) {
+            setResultDialog({
+                success: false,
+                title: "Password Change Failed",
+                message: getApiErrorMessage(error, "Unable to change password."),
+                technicalDetails: error?.message ?? ""
+            });
+        } finally {
+            setPasswordSaving(false);
+        }
     };
 
     return (
@@ -189,6 +221,66 @@ export default function SettingsPage({
                         {userSettingsError ? (
                             <div className="tracking-modal-error">User settings: {userSettingsError}</div>
                         ) : null}
+                    </div>
+                </section>
+
+                <section className="tracking-panel organizations-panel">
+                    <div className="tracking-panel-header organizations-panel-header">
+                        <div>
+                            <h3>Account</h3>
+                        </div>
+                        <div className="settings-user-actions">
+                            <button
+                                type="button"
+                                className="tracking-save-button"
+                                onClick={handleChangePassword}
+                                disabled={passwordSaving}
+                            >
+                                Save Password
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="tracking-panel-body">
+                        <div className="settings-account-summary">
+                            <span>Email</span>
+                            <strong>{currentUser?.email ?? ""}</strong>
+                        </div>
+
+                        <div className="settings-form-grid settings-account-grid">
+                            <label className="tracking-modal-field settings-account-current-password">
+                                <span>Current Password</span>
+                                <input
+                                    type="password"
+                                    autoComplete="current-password"
+                                    value={currentPassword}
+                                    onChange={event => setCurrentPassword(event.target.value)}
+                                    disabled={passwordSaving}
+                                />
+                            </label>
+
+                            <label className="tracking-modal-field settings-account-new-password">
+                                <span>New Password</span>
+                                <input
+                                    type="password"
+                                    autoComplete="new-password"
+                                    value={newPassword}
+                                    onChange={event => setNewPassword(event.target.value)}
+                                    disabled={passwordSaving}
+                                />
+                            </label>
+
+                            <label className="tracking-modal-field settings-account-confirm-password">
+                                <span>Confirm New Password</span>
+                                <input
+                                    type="password"
+                                    autoComplete="new-password"
+                                    value={confirmNewPassword}
+                                    onChange={event => setConfirmNewPassword(event.target.value)}
+                                    disabled={passwordSaving}
+                                />
+                            </label>
+                        </div>
                     </div>
                 </section>
 

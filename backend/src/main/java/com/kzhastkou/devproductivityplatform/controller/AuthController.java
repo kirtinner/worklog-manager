@@ -2,6 +2,7 @@ package com.kzhastkou.devproductivityplatform.controller;
 
 import com.kzhastkou.devproductivityplatform.dto.AuthResponse;
 import com.kzhastkou.devproductivityplatform.dto.AuthUserResponse;
+import com.kzhastkou.devproductivityplatform.dto.ChangePasswordRequest;
 import com.kzhastkou.devproductivityplatform.dto.LoginRequest;
 import com.kzhastkou.devproductivityplatform.dto.RegisterRequest;
 import com.kzhastkou.devproductivityplatform.service.AuthService;
@@ -35,6 +36,11 @@ public class AuthController {
     @GetMapping("/me")
     public AuthUserResponse me() {
         return service.getCurrentUser(resolveCurrentUserId());
+    }
+
+    @PostMapping("/change-password")
+    public AuthUserResponse changePassword(@RequestBody ChangePasswordRequest request) {
+        return service.changePassword(resolveCurrentUserId(), request);
     }
 
     private Long resolveCurrentUserId() {

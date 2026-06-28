@@ -2,6 +2,7 @@ package com.kzhastkou.devproductivityplatform.service;
 
 import com.kzhastkou.devproductivityplatform.dto.AuthResponse;
 import com.kzhastkou.devproductivityplatform.dto.AuthUserResponse;
+import com.kzhastkou.devproductivityplatform.dto.ChangePasswordRequest;
 import com.kzhastkou.devproductivityplatform.dto.LoginRequest;
 import com.kzhastkou.devproductivityplatform.dto.RegisterRequest;
 import com.kzhastkou.devproductivityplatform.entity.Developer;
@@ -94,6 +95,37 @@ public class AuthService {
         return toUserResponse(developer);
     }
 
+    @Transactional
+    public AuthUserResponse changePassword(Long developerId, ChangePasswordRequest request) {
+        Developer developer = developerRepository.findById(developerId)
+                .orElseThrow(() -> new NotFoundException("Developer not found"));
+
+        String currentPassword = request != null ? request.getCurrentPassword() : null;
+        String newPassword = request != null ? request.getNewPassword() : null;
+        String confirmNewPassword = request != null ? request.getConfirmNewPassword() : null;
+
+        if (isBlank(currentPassword)) {
+            throw new RuntimeException("Current password is required.");
+        }
+
+        if (!passwordEncoder.matches(currentPassword, developer.getPassword())) {
+            throw new RuntimeException("Current password is incorrect.");
+        }
+
+        if (newPassword == null || newPassword.length() < 6) {
+            throw new RuntimeException("New password must be at least 6 characters.");
+        }
+
+        if (!newPassword.equals(confirmNewPassword)) {
+            throw new RuntimeException("New password and confirmation do not match.");
+        }
+
+        developer.setPassword(passwordEncoder.encode(newPassword));
+        Developer savedDeveloper = developerRepository.save(developer);
+
+        return toUserResponse(savedDeveloper);
+    }
+
     private AuthResponse buildAuthResponse(Developer developer) {
         return AuthResponse.builder()
                 .token(jwtService.generateToken(developer.getId()))
@@ -136,6 +168,10 @@ public class AuthService {
 
     private String normalizeEmail(String email) {
         return email == null ? "" : email.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 
     private boolean passwordMatches(String rawPassword, String storedPassword) {

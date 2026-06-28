@@ -22,7 +22,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/register").permitAll()
-                        .requestMatchers("/api/auth/me").hasAnyRole("USER", "ADMIN")
+                        .requestMatchers("/api/auth/me", "/api/auth/change-password").hasAnyRole("USER", "ADMIN")
                         .requestMatchers("/api/organizations", "/api/organizations/**").hasAnyRole("USER", "ADMIN")
                         .requestMatchers("/api/clients", "/api/clients/**").hasAnyRole("USER", "ADMIN")
                         .requestMatchers("/api/projects", "/api/projects/**").hasAnyRole("USER", "ADMIN")

@@ -624,6 +624,21 @@ textarea:focus {
   height: 12px;
 }
 
+.app-shell-current-user {
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--app-control-border);
+  border-radius: 6px;
+  background: var(--app-surface-bg);
+  color: var(--app-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .app-shell-footer-separator {
   width: 100%;
   height: 1px;
@@ -2664,6 +2679,45 @@ textarea:focus {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.settings-account-summary {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+  color: var(--app-text-muted);
+  font-size: 12px;
+}
+
+.settings-account-summary strong {
+  min-width: 0;
+  color: var(--app-text-default);
+  font-size: 13px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-account-grid {
+  grid-template-areas:
+    "current ."
+    "new confirm";
+  align-items: start;
+}
+
+.settings-account-current-password {
+  grid-area: current;
+}
+
+.settings-account-new-password {
+  grid-area: new;
+}
+
+.settings-account-confirm-password {
+  grid-area: confirm;
 }
 
 .reports-parameters-header .reports-period-bar {
