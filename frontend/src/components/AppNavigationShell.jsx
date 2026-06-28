@@ -1,4 +1,4 @@
-export default function AppNavigationShell({ activePage, onNavigate, onLogout, currentUser, children }) {
+export default function AppNavigationShell({ activePage, onNavigate, onLogout, currentUser, aboutInfo, children }) {
     const mainItems = [
         { key: "time-tracking", label: "Time Tracking" },
         { key: "reports", label: "Reports" }
@@ -79,6 +79,17 @@ export default function AppNavigationShell({ activePage, onNavigate, onLogout, c
                         aria-current={activePage === "administration" ? "page" : undefined}
                     >
                         Administration
+                    </button>
+                    <button
+                        type="button"
+                        className={[
+                            "app-shell-nav-item",
+                            activePage === "about" ? "app-shell-nav-item-active" : ""
+                        ].filter(Boolean).join(" ")}
+                        onClick={() => onNavigate("about")}
+                        aria-current={activePage === "about" ? "page" : undefined}
+                    >
+                        About
                     </button>
                     <div className="app-shell-footer-gap" aria-hidden="true" />
                     {currentUser?.email ? (

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import AppNavigationShell from "./components/AppNavigationShell";
+import AboutPage from "./pages/AboutPage";
 import ClientsPage from "./pages/ClientsPage";
 import LoginPage from "./pages/LoginPage";
 import AdministrationPage from "./pages/AdministrationPage";
@@ -11,6 +12,7 @@ import SettingsPage from "./pages/SettingsPage";
 import TasksPage from "./pages/TasksPage";
 import TimeTrackingPage from "./pages/TimeTrackingPage";
 import { DEFAULT_USER_SETTINGS, UserSettingsContext } from "./context/UserSettingsContext";
+import { getAboutInfo } from "./services/aboutService";
 import { getCurrentUser, changePassword as apiChangePassword } from "./services/authService";
 import { getOrganizations } from "./services/organizationsService";
 import { getSoftwareProducts } from "./services/softwareProductsService";
@@ -48,7 +50,8 @@ const VALID_PAGES = new Set([
     "projects",
     "tasks",
     "settings",
-    "administration"
+    "administration",
+    "about"
 ]);
 
 function pageToPath(page) {
@@ -74,6 +77,7 @@ function App() {
     const [userSettingsLoading, setUserSettingsLoading] = useState(false);
     const [userSettingsError, setUserSettingsError] = useState("");
     const [currentUser, setCurrentUser] = useState(null);
+    const [aboutInfo, setAboutInfo] = useState(null);
     const [softwareProductsLoading, setSoftwareProductsLoading] = useState(false);
     const [softwareProductsError, setSoftwareProductsError] = useState("");
     const [reportsResetToken, setReportsResetToken] = useState(0);
@@ -96,11 +100,13 @@ function App() {
 
             const [
                 currentUserResult,
+                aboutInfoResult,
                 organizationsResult,
                 softwareProductsResult,
                 userSettingsResult
             ] = await Promise.allSettled([
                 getCurrentUser(),
+                getAboutInfo(),
                 getOrganizations(),
                 getSoftwareProducts(),
                 getUserSettings()
@@ -114,6 +120,12 @@ function App() {
                 setCurrentUser(currentUserResult.value);
             } else {
                 setCurrentUser(null);
+            }
+
+            if (aboutInfoResult.status === "fulfilled") {
+                setAboutInfo(aboutInfoResult.value);
+            } else {
+                setAboutInfo(null);
             }
 
             if (organizationsResult.status === "fulfilled") {
@@ -233,6 +245,7 @@ function App() {
         setOrganizations([]);
         setSoftwareProducts([]);
         setCurrentUser(null);
+        setAboutInfo(null);
         setUserSettings(DEFAULT_USER_SETTINGS);
         setUserSettingsError("");
         setSoftwareProductsError("");
@@ -321,6 +334,8 @@ function App() {
                         onRunScheduledExportNow={handleRunScheduledExportNow}
                     />
                 );
+            case "about":
+                return <AboutPage aboutInfo={aboutInfo} />;
             default:
                 return (
                     <TimeTrackingPage
@@ -345,6 +360,7 @@ function App() {
                 onNavigate={isAuth ? navigateToPage : () => {}}
                 onLogout={isAuth ? logout : () => {}}
                 currentUser={currentUser}
+                aboutInfo={aboutInfo}
             >
                 {isAuth ? (
                     <Routes>
@@ -357,6 +373,7 @@ function App() {
                         <Route path="/tasks" element={renderPage()} />
                         <Route path="/settings" element={renderPage()} />
                         <Route path="/administration" element={renderPage()} />
+                        <Route path="/about" element={renderPage()} />
                         <Route path="*" element={<Navigate to="/time-tracking" replace />} />
                     </Routes>
                 ) : (

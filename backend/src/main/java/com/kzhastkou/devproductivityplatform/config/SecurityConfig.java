@@ -30,6 +30,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/tasks", "/api/tasks/**").hasAnyRole("USER", "ADMIN")
                         .requestMatchers("/api/time-entries", "/api/time-entries/**").hasAnyRole("USER", "ADMIN")
                         .requestMatchers("/api/user-settings", "/api/user-settings/**").hasAnyRole("USER", "ADMIN")
+                        .requestMatchers("/api/about").hasAnyRole("USER", "ADMIN")
                         .requestMatchers("/api/reports", "/api/reports/**").hasAnyRole("USER", "ADMIN")
                         .requestMatchers("/api/administration", "/api/administration/**").hasAnyRole("USER", "ADMIN")
                         .requestMatchers("/api/import", "/api/import/**").hasAnyRole("USER", "ADMIN")

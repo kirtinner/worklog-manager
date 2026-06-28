@@ -28,6 +28,12 @@ logging:
     org.springframework.web: INFO
 
 app:
+  about:
+    application-name: Dev Productivity Platform
+    version: 1.0.0
+    author: Kiryl Zhastkou
+    license: MIT
+    repository: https://github.com/kirtinner/worklog-manager
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   full-data-export:
