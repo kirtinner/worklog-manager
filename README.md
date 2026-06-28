@@ -3,208 +3,289 @@
 ![Java](https://img.shields.io/badge/Java-21-blue)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.x-brightgreen)
 ![React](https://img.shields.io/badge/React-19-61dafb)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ed)
+![License](https://img.shields.io/badge/License-MIT-green)
 
-Dev Productivity Platform is an enterprise-style full-stack productivity application for software developers and small teams.
+An enterprise-style full-stack productivity platform built with **Java**, **Spring Boot**, **React**, and **PostgreSQL**.
 
-It provides a practical workspace for organizations, clients, projects, tasks, daily time tracking, reports, Excel import/export, account settings, and application metadata. The project is built as a Spring Boot REST API, a React/Vite frontend, and a PostgreSQL database.
+The application provides a complete workspace for managing organizations, clients, projects, tasks, worklogs, reporting, and user settings. It demonstrates a production-oriented layered architecture with secure JWT authentication, multi-user data isolation, Docker-based local deployment, and a compact enterprise-style user interface.
 
-## Screenshots
+---
 
-### Login
+# Screenshots
+
+> Replace the placeholder images below with the latest application screenshots.
+
+## Login
 
 ![Login](docs/screenshots/login.png)
 
-### Time Tracking
+## Time Tracking
 
 ![Time Tracking](docs/screenshots/time-tracking.png)
 
-### Reports
+## Tasks
+
+![Tasks](docs/screenshots/tasks.png)
+
+## Reports
 
 ![Reports](docs/screenshots/reports.png)
 
-### Administration
+## Settings
 
-![Administration](docs/screenshots/administration.png)
+![Settings](docs/screenshots/settings.png)
 
-## Features
+## About
 
-- JWT authentication with Sign In and Sign Up.
-- BCrypt password storage and account password change.
-- Multi-user data isolation across organizations, clients, projects, tasks, time entries, settings, reports, and import/export.
-- Organizations, Clients, Projects, Tasks, Software Products, Settings, Administration, Reports, and About pages.
-- Daily time tracking with worklog entries and monthly summaries.
-- Work effort reports grouped by client and task.
-- Full Excel import/export for user-owned data.
-- Scheduled full data export configuration.
-- Docker support for local development.
+![About](docs/screenshots/about.png)
 
-## Technology Stack
+---
 
-### Backend
+# Features
+
+## Authentication
+
+- JWT Authentication
+- User Registration (Sign Up)
+- User Login (Sign In)
+- BCrypt password encryption
+- Change Password
+- User Account information
+
+## Productivity
+
+- Organizations
+- Clients
+- Projects
+- Tasks
+- Daily Time Tracking
+- Worklog Entries
+- Monthly Summaries
+
+## Reporting
+
+- Work Effort Report
+- Excel Import
+- Excel Export
+- Scheduled Export Configuration
+
+## Multi-user
+
+- Complete user data isolation
+- User-scoped organizations
+- User-scoped clients
+- User-scoped projects
+- User-scoped tasks
+- User-scoped reports
+- User-scoped settings
+
+## Application
+
+- About page
+- Enterprise-style UI
+- Docker support
+- REST API
+- Production-ready configuration
+
+---
+
+# Technology Stack
+
+## Backend
 
 - Java 21
 - Spring Boot
 - Spring Security
 - JWT Authentication
-- Spring Data JPA / Hibernate
+- Spring Data JPA
+- Hibernate
 - PostgreSQL
 - Apache POI
 
-### Frontend
+## Frontend
 
 - React
 - Vite
 - Axios
 
-### Infrastructure
+## Infrastructure
 
 - Docker
 - Docker Compose
 - Nginx
 
-## Architecture
+---
+
+# Architecture
 
 ```text
-Browser
-  -> Nginx / React UI
-  -> Spring Boot REST API
-  -> PostgreSQL
+                React + Vite
+                      │
+                      ▼
+                 Nginx (Frontend)
+                      │
+                 REST /api
+                      │
+                      ▼
+            Spring Boot REST API
+                      │
+             Spring Security + JWT
+                      │
+                      ▼
+                 PostgreSQL
 ```
 
-## Quick Start
+---
 
-### Prerequisites
+# Quick Start
+
+## Prerequisites
 
 - Docker
 - Docker Compose
 
-### Run Locally With Docker Compose
-
-`docker-compose.yml` is a local development configuration, not a production deployment template.
-
-From the project root:
+## Run locally
 
 ```bash
 docker compose up -d --build
 ```
 
-Open the application:
+Open:
 
-```text
+```
 http://localhost
 ```
 
-Create a user through the Sign Up form, then use the application normally.
+Create a new account using **Sign Up** and start using the application.
 
-## Services
+---
 
-Docker Compose starts three services:
+# Local Development
 
-- `postgres` - PostgreSQL database on port `5432`
-- `backend` - Spring Boot API on port `8080`
-- `frontend` - Nginx-served React application on port `80`
-
-The frontend proxies `/api/` requests to the backend service through Nginx.
-
-## Local Development
-
-### Backend
+## Backend
 
 ```bash
 cd backend
+
 mvn test
+
 mvn spring-boot:run
 ```
 
-By default, the backend uses the `dev` profile. The dev profile keeps local defaults convenient, including `ddl-auto=update`, SQL logging, and a local JWT fallback secret.
+The backend runs with the **dev** profile by default.
 
-The default local database URL is:
+Default database:
 
-```text
+```
 jdbc:postgresql://localhost:5432/dev_platform
 ```
 
-### Frontend
+---
+
+## Frontend
 
 ```bash
 cd frontend
+
 npm install
+
 npm run dev
 ```
 
-The Vite dev server proxies `/api` requests to `http://localhost:8080`.
+The Vite development server proxies `/api` requests to:
 
-## Production Environment Variables
+```
+http://localhost:8080
+```
 
-Set these variables for any non-dev deployment:
+---
 
-```text
+# Production Environment Variables
+
+```
 DATABASE_URL=jdbc:postgresql://<host>:<port>/<database>
-DATABASE_USERNAME=<database-user>
-DATABASE_PASSWORD=<database-password>
-JWT_SECRET=<strong-random-secret-at-least-32-characters>
-CORS_ALLOWED_ORIGINS=https://your-frontend-domain.example
+DATABASE_USERNAME=<username>
+DATABASE_PASSWORD=<password>
+
+JWT_SECRET=<strong-random-secret>
+
+CORS_ALLOWED_ORIGINS=https://your-domain.com
 ```
 
-Production notes:
+Production recommendations:
 
-- Do not run production with the `dev` profile.
-- `JWT_SECRET` is required outside the `dev` profile.
-- The demo/local JWT secret is rejected outside the `dev` profile.
-- Production defaults disable SQL logging and do not use `ddl-auto=update`.
-- Do not publish real `.env` files, database dumps, Excel exports, backup files, or local machine paths.
+- Do not use the **dev** profile.
+- Configure a strong `JWT_SECRET`.
+- SQL logging is disabled.
+- Hibernate schema auto-update is disabled.
+- Never commit `.env` files or production credentials.
 
-## Useful Commands
+---
 
-Build and start all local services:
+# Docker Services
 
-```bash
-docker compose up -d --build
-```
+The local Docker Compose environment starts:
 
-View running containers:
+| Service | Port |
+|----------|------|
+| PostgreSQL | 5432 |
+| Spring Boot Backend | 8080 |
+| React + Nginx Frontend | 80 |
 
-```bash
-docker compose ps
-```
+---
 
-View logs:
-
-```bash
-docker compose logs -f
-```
-
-Stop services:
-
-```bash
-docker compose down
-```
-
-Stop services and remove the local database volume:
-
-```bash
-docker compose down -v
-```
-
-## Project Structure
+# Project Structure
 
 ```text
-.
-+-- backend/              # Java Spring Boot backend
-+-- frontend/             # React + Vite frontend
-+-- docker-compose.yml    # Local PostgreSQL, backend, frontend stack
-+-- README.md
+backend/
+    Spring Boot REST API
+
+frontend/
+    React + Vite application
+
+docs/
+    Screenshots
+
+docker-compose.yml
+    Local development environment
+
+README.md
 ```
 
-## Future Improvements
+---
 
-- Email verification.
-- Forgot password flow.
-- More granular roles and permissions.
-- Database migrations with Flyway or Liquibase.
-- Additional automated security and API tests.
+# Roadmap
 
-## License
+## Version 1.1
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE).
+- Email Verification
+- Forgot Password
+- User Profile
+
+## Version 1.2
+
+- Role Management
+- Additional Reports
+- Dashboard Improvements
+
+## Future
+
+- Flyway/Liquibase
+- Additional Integration Tests
+- Team Collaboration
+
+---
+
+# Current Version
+
+**v1.0.0**
+
+---
+
+# License
+
+This project is licensed under the MIT License.
+
+See the **LICENSE** file for details.
