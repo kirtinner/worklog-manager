@@ -140,7 +140,7 @@
 .worklog-table th,
 .worklog-table td {
   padding: 4px 8px;
-  border-bottom: 1px solid #edf0f5;
+  border-bottom: 1px solid var(--app-table-row-border);
   text-align: left;
   white-space: normal;
   vertical-align: middle;
@@ -149,14 +149,14 @@
 }
 
 .worklog-table th {
-  background: #dfe6ef;
-  color: var(--app-text-heading);
+  background: var(--app-table-header-bg);
+  color: var(--app-table-header-text);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0;
-  border-top: 1px solid #f6f8fb;
-  border-bottom: 2px solid #b7c1cf;
-  box-shadow: inset 0 1px 0 #f6f8fb;
+  border-top: 1px solid var(--app-panel-bg);
+  border-bottom: 2px solid var(--app-table-header-border);
+  box-shadow: inset 0 1px 0 var(--app-panel-bg);
 }
 
 .worklog-table thead,
@@ -174,7 +174,7 @@
 }
 
 .worklog-table tbody tr:hover {
-  background: #f8fafc;
+  background: var(--app-table-row-hover-bg);
 }
 
 .worklog-table tbody tr {
@@ -196,29 +196,29 @@
 
 .worklog-table tbody tr.worklog-row-selected td {
   background: var(--app-selection-bg);
-  box-shadow: inset 0 1px 0 #c9ddf4, inset 0 -1px 0 #c9ddf4;
+  box-shadow: inset 0 1px 0 var(--app-selection-border), inset 0 -1px 0 var(--app-selection-border);
 }
 
 .worklog-table tbody tr.worklog-row-selected td:first-child {
-  box-shadow: inset 3px 0 0 var(--app-selection-accent), inset 0 1px 0 #c9ddf4, inset 0 -1px 0 #c9ddf4;
+  box-shadow: inset 3px 0 0 var(--app-selection-accent), inset 0 1px 0 var(--app-selection-border), inset 0 -1px 0 var(--app-selection-border);
 }
 
 .worklog-table tbody tr.worklog-row-editing td {
   background: var(--app-selection-bg);
-  box-shadow: inset 0 1px 0 #c9ddf4, inset 0 -1px 0 #c9ddf4;
+  box-shadow: inset 0 1px 0 var(--app-selection-border), inset 0 -1px 0 var(--app-selection-border);
 }
 
 .worklog-table tbody tr.worklog-row-editing td:first-child {
-  box-shadow: inset 3px 0 0 var(--app-selection-accent), inset 0 1px 0 #c9ddf4, inset 0 -1px 0 #c9ddf4;
+  box-shadow: inset 3px 0 0 var(--app-selection-accent), inset 0 1px 0 var(--app-selection-border), inset 0 -1px 0 var(--app-selection-border);
 }
 
 .worklog-table tbody tr.worklog-row-validation-error td {
-  background: #fdf7f4;
-  box-shadow: inset 0 1px 0 #eaded5, inset 0 -1px 0 #eaded5;
+  background: var(--app-error-bg);
+  box-shadow: inset 0 1px 0 var(--app-error-border), inset 0 -1px 0 var(--app-error-border);
 }
 
 .worklog-table tbody tr.worklog-row-validation-error td:first-child {
-  box-shadow: inset 3px 0 0 #c78f6a, inset 0 1px 0 #eaded5, inset 0 -1px 0 #eaded5;
+  box-shadow: inset 3px 0 0 var(--app-error-text), inset 0 1px 0 var(--app-error-border), inset 0 -1px 0 var(--app-error-border);
 }
 
 .worklog-table tfoot td {
@@ -226,24 +226,24 @@
   bottom: 0;
   z-index: 1;
   padding: 4px 8px;
-  border-top: 2px solid #b7c1cf;
+  border-top: 2px solid var(--app-table-header-border);
   border-bottom: none;
-  background: #dfe6ef;
-  color: var(--app-text-heading);
+  background: var(--app-table-header-bg);
+  color: var(--app-table-header-text);
   font-weight: 800;
   font-size: 12px;
   letter-spacing: 0;
-  box-shadow: inset 0 1px 0 #ffffff;
+  box-shadow: inset 0 1px 0 var(--app-panel-bg);
 }
 
 .worklog-table tfoot tr.worklog-footer-limit-error td {
-  background: #fdf7f4;
-  border-top-color: #d8b7a3;
-  box-shadow: inset 0 1px 0 #fff4ec;
+  background: var(--app-error-bg);
+  border-top-color: var(--app-error-border);
+  box-shadow: inset 0 1px 0 var(--app-error-border);
 }
 
 .worklog-table tfoot td:first-child {
-  color: var(--app-text-heading);
+  color: var(--app-table-header-text);
 }
 
 .worklog-number-column {
@@ -376,7 +376,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  border: 1px solid #e3e8ef;
+  border: 1px solid var(--app-panel-border);
   border-radius: 6px;
   background: var(--app-panel-bg);
   overflow: hidden;
@@ -411,7 +411,7 @@
 .monthly-summary-table th,
 .monthly-summary-table td {
   padding: 4px 8px;
-  border-bottom: 1px solid #edf0f5;
+  border-bottom: 1px solid var(--app-table-row-border);
   text-align: left;
   white-space: nowrap;
   vertical-align: middle;
@@ -422,14 +422,14 @@
   position: sticky;
   top: 0;
   z-index: 2;
-  background: #dfe6ef;
-  color: var(--app-text-heading);
+  background: var(--app-table-header-bg);
+  color: var(--app-table-header-text);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0;
-  border-top: 1px solid #f6f8fb;
-  border-bottom: 2px solid #b7c1cf;
-  box-shadow: inset 0 1px 0 #f6f8fb;
+  border-top: 1px solid var(--app-panel-bg);
+  border-bottom: 2px solid var(--app-table-header-border);
+  box-shadow: inset 0 1px 0 var(--app-panel-bg);
 }
 
 .monthly-summary-table tbody tr {
@@ -438,12 +438,12 @@
 
 .monthly-summary-weekend-row td {
   background: var(--app-selection-bg);
-  color: #4f5b66;
-  box-shadow: inset 0 1px 0 #c9ddf4, inset 0 -1px 0 #c9ddf4;
+  color: var(--app-selection-text);
+  box-shadow: inset 0 1px 0 var(--app-selection-border), inset 0 -1px 0 var(--app-selection-border);
 }
 
 .monthly-summary-weekend-row td:first-child {
-  box-shadow: inset 3px 0 0 var(--app-selection-accent), inset 0 1px 0 #c9ddf4, inset 0 -1px 0 #c9ddf4;
+  box-shadow: inset 3px 0 0 var(--app-selection-accent), inset 0 1px 0 var(--app-selection-border), inset 0 -1px 0 var(--app-selection-border);
 }
 
 .monthly-summary-number-column {
@@ -463,23 +463,23 @@
   bottom: 0;
   z-index: 1;
   padding: 4px 8px;
-  border-top: 2px solid #b7c1cf;
+  border-top: 2px solid var(--app-table-header-border);
   border-bottom: none;
-  background: #dfe6ef;
-  color: var(--app-text-heading);
+  background: var(--app-table-header-bg);
+  color: var(--app-table-header-text);
   font-weight: 800;
   font-size: 12px;
   letter-spacing: 0;
-  box-shadow: inset 0 1px 0 #ffffff;
+  box-shadow: inset 0 1px 0 var(--app-panel-bg);
 }
 
 .monthly-summary-footer-row td {
-  background: #dfe6ef;
-  color: var(--app-text-heading);
+  background: var(--app-table-header-bg);
+  color: var(--app-table-header-text);
 }
 
 .monthly-summary-footer-row td:first-child {
-  color: var(--app-text-heading);
+  color: var(--app-table-header-text);
 }
 
 .task-details-panel {

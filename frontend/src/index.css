@@ -341,6 +341,118 @@ textarea:focus {
   line-height: 1.35;
 }
 
+.app-table,
+.app-master-data-table,
+.organizations-table,
+.tasks-table,
+.reports-result-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 13px;
+}
+
+.app-table th,
+.app-master-data-table thead th,
+.reports-result-table thead tr th {
+  background: var(--app-table-header-bg);
+  color: var(--app-table-header-text);
+  border-bottom: 1px solid var(--app-table-header-border);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.app-table td,
+.app-master-data-table tbody td,
+.reports-result-table tbody td {
+  border-bottom: 1px solid var(--app-table-row-border);
+  color: var(--app-text-default);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.app-table tbody tr:hover,
+.app-master-data-table tbody tr:hover,
+.reports-result-table tbody tr:hover {
+  background: var(--app-table-row-hover-bg);
+}
+
+.app-table-row-selected,
+.organizations-row-selected,
+.tasks-table .organizations-row-selected {
+  background: var(--app-selection-bg);
+  box-shadow: inset 3px 0 0 var(--app-selection-accent);
+}
+
+.app-table-row-selected:hover,
+.organizations-row-selected:hover,
+.tasks-table .organizations-row-selected:hover {
+  background: var(--app-selection-bg);
+}
+
+.app-empty-state,
+.reports-empty-state,
+.tasks-editor-timesheet-empty,
+.tasks-editor-timesheet-empty-cell {
+  color: var(--app-text-muted);
+  font-size: 13px;
+}
+
+.app-filter-bar,
+.clients-filter-bar,
+.tasks-filter-header-row {
+  border: 1px solid var(--app-editor-header-border);
+  border-radius: 8px;
+  background: var(--app-editor-header-bg);
+  box-shadow: 0 1px 3px var(--app-editor-header-shadow);
+  box-sizing: border-box;
+}
+
+.app-filter-label,
+.clients-filter-label,
+.tasks-filter-heading,
+.reports-period-field > span {
+  color: var(--app-text-default);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.app-filter-control,
+.clients-filter-select,
+.projects-filter-select,
+.tasks-filter-select,
+.reports-period-field input,
+.reports-period-field select {
+  border: 1px solid var(--app-control-border);
+  border-radius: 6px;
+  background: var(--app-panel-bg);
+  color: var(--app-text-primary);
+  box-sizing: border-box;
+}
+
+.app-filter-control:focus,
+.clients-filter-select:focus,
+.projects-filter-select:focus,
+.tasks-filter-select:focus,
+.reports-period-field input:focus,
+.reports-period-field select:focus {
+  border-color: var(--app-selection-border);
+  outline: 2px solid var(--app-focus-ring);
+  outline-offset: 1px;
+}
+
+.app-filter-control:disabled,
+.clients-filter-select:disabled,
+.projects-filter-select:disabled,
+.tasks-filter-select:disabled,
+.reports-period-field input:disabled,
+.reports-period-field select:disabled {
+  background: var(--app-surface-bg);
+  color: var(--app-text-muted);
+  cursor: not-allowed;
+}
+
 .actions {
   display: flex;
   gap: 10px;
@@ -956,10 +1068,10 @@ textarea:focus {
   min-height: 0;
   margin-bottom: 14px;
   padding: 10px 14px;
-  border: 1px solid #dfe4ec;
+  border: 1px solid var(--app-panel-border);
   border-radius: 8px;
-  background: #f3efe7;
-  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.06);
+  background: var(--app-surface-bg);
+  box-shadow: 0 1px 3px var(--app-panel-shadow);
   box-sizing: border-box;
 }
 
@@ -986,10 +1098,10 @@ textarea:focus {
 
 .tasks-filter-header-row {
   padding: 8px 14px;
-  border: 1px solid #b9d2ec;
+  border: 1px solid var(--app-editor-header-border);
   border-radius: 8px;
-  background: #dcebf9;
-  box-shadow: 0 1px 3px rgba(28, 85, 135, 0.12);
+  background: var(--app-editor-header-bg);
+  box-shadow: 0 1px 3px var(--app-editor-header-shadow);
 }
 
 .tasks-filter-values-row {
@@ -1009,7 +1121,7 @@ textarea:focus {
 }
 
 .tasks-filter-heading {
-  color: #344054;
+  color: var(--app-text-default);
   font-size: 12px;
   font-weight: 600;
   line-height: 1.35;
@@ -1039,8 +1151,8 @@ textarea:focus {
   padding: 6px 8px;
   border: 0;
   border-radius: 5px;
-  background: #dcebf9;
-  color: #344054;
+  background: var(--app-editor-header-bg);
+  color: var(--app-text-default);
   font-size: 13px;
   font-weight: 400;
   line-height: normal;
@@ -1335,9 +1447,9 @@ textarea:focus {
   display: grid;
   gap: 8px;
   padding: 10px;
-  border: 1px solid #d9dee7;
+  border: 1px solid var(--app-control-border);
   border-radius: 6px;
-  background: #ffffff;
+  background: var(--app-panel-bg);
 }
 
 .administration-schema-columns {
@@ -1349,7 +1461,7 @@ textarea:focus {
 .administration-schema-columns span {
   display: block;
   margin-bottom: 6px;
-  color: #344054;
+  color: var(--app-text-default);
   font-size: 12px;
   font-weight: 700;
 }
@@ -1764,7 +1876,7 @@ textarea:focus {
   background: var(--app-selection-bg);
   border-color: var(--app-control-border);
   color: var(--app-selection-text);
-  box-shadow: inset 0 1px 0 #ffffff, inset 0 -1px 0 #c9ddf4;
+  box-shadow: inset 0 1px 0 var(--app-panel-bg), inset 0 -1px 0 var(--app-selection-border);
 }
 
 .tracking-calendar-cell-selected {
@@ -1777,7 +1889,7 @@ textarea:focus {
 .tracking-calendar-cell-selected.tracking-calendar-cell-weekend {
   border-color: var(--app-selection-border);
   background: var(--app-selection-bg);
-  box-shadow: inset 3px 0 0 var(--app-selection-accent), inset 0 1px 0 #ffffff, inset 0 -1px 0 #c9ddf4;
+  box-shadow: inset 3px 0 0 var(--app-selection-accent), inset 0 1px 0 var(--app-panel-bg), inset 0 -1px 0 var(--app-selection-border);
 }
 
 .tracking-calendar-cell-muted {
@@ -2390,17 +2502,17 @@ textarea:focus {
 }
 
 .organizations-panel:has(.tasks-table) {
-  background: #ffffff;
+  background: var(--app-panel-bg);
 }
 
 .organizations-panel:has(.tasks-table) .tracking-panel-header {
-  border-color: #b9d2ec;
-  background: #dcebf9;
-  box-shadow: 0 1px 3px rgba(28, 85, 135, 0.12);
+  border-color: var(--app-editor-header-border);
+  background: var(--app-editor-header-bg);
+  box-shadow: 0 1px 3px var(--app-editor-header-shadow);
 }
 
 .organizations-panel:has(.tasks-table) .tracking-panel-body {
-  background: #ffffff;
+  background: var(--app-panel-bg);
 }
 
 .tasks-col-completed {
@@ -2452,7 +2564,7 @@ textarea:focus {
 .clients-table-scroll {
   max-height: min(70vh, 760px);
   padding: 0;
-  background: #ffffff;
+  background: var(--app-panel-bg);
   overflow-y: auto;
   overflow-x: auto;
 }
@@ -2468,8 +2580,8 @@ textarea:focus {
   position: sticky;
   top: 0;
   z-index: 5;
-  background: #eef2f6;
-  box-shadow: 0 1px 0 #dfe4ec;
+  background: var(--app-table-header-bg);
+  box-shadow: 0 1px 0 var(--app-table-header-border);
 }
 
 .tasks-col-name {
@@ -2579,9 +2691,9 @@ textarea:focus {
   max-height: clamp(180px, 48vh, 560px);
   overflow-x: auto;
   overflow-y: auto;
-  border: 1px solid #e5e9f0;
+  border: 1px solid var(--app-table-row-border);
   border-bottom: none;
-  background: #ffffff;
+  background: var(--app-panel-bg);
 }
 
 .reports-result-table {
@@ -2590,10 +2702,10 @@ textarea:focus {
 
 .reports-total-summary-wrap {
   flex: 0 0 auto;
-  border: 1px solid #b9d2ec;
+  border: 1px solid var(--app-editor-header-border);
   border-top: none;
-  background: #dcebf9;
-  box-shadow: 0 -1px 3px rgba(28, 85, 135, 0.12);
+  background: var(--app-editor-header-bg);
+  box-shadow: 0 -1px 3px var(--app-editor-header-shadow);
 }
 
 .reports-total-summary-row {
@@ -2603,15 +2715,15 @@ textarea:focus {
 
 .reports-total-summary-row > div {
   padding: 8px 10px;
-  color: #202c38;
+  color: var(--app-editor-header-text);
   font-size: 13px;
   font-weight: 700;
-  border-top: 1px solid #b9d2ec;
+  border-top: 1px solid var(--app-editor-header-border);
 }
 
 .reports-empty-state {
   padding: 14px;
-  color: #667085;
+  color: var(--app-text-muted);
   font-size: 13px;
 }
 
@@ -2631,22 +2743,22 @@ textarea:focus {
   position: sticky;
   top: 0;
   z-index: 2;
-  background: #dcebf9;
-  color: #202c38;
+  background: var(--app-editor-header-bg);
+  color: var(--app-editor-header-text);
   font-weight: 700;
-  border-top: 1px solid #b9d2ec;
-  border-bottom: 1px solid #b9d2ec;
-  box-shadow: 0 1px 3px rgba(28, 85, 135, 0.12);
+  border-top: 1px solid var(--app-editor-header-border);
+  border-bottom: 1px solid var(--app-editor-header-border);
+  box-shadow: 0 1px 3px var(--app-editor-header-shadow);
 }
 
 .reports-result-header-row th {
-  background: #dcebf9;
+  background: var(--app-editor-header-bg);
 }
 
 .reports-result-table tbody tr.reports-client-row td {
   background: transparent;
   font-weight: 700 !important;
-  color: #1f2937;
+  color: var(--app-text-primary);
 }
 
 .reports-client-row td:last-child {
@@ -2660,7 +2772,7 @@ textarea:focus {
 }
 
 .reports-parameters-panel .tracking-panel-header {
-  background: #dcebf9;
+  background: var(--app-editor-header-bg);
 }
 
 @media (max-width: 900px) {
