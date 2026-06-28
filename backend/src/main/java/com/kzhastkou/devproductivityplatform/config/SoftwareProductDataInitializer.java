@@ -25,6 +25,7 @@ public class SoftwareProductDataInitializer implements ApplicationRunner {
             return;
         }
 
+        // Legacy local-data backfill. New users receive default products during registration.
         var developer = developerRepository.findFirstByOrderByIdAsc().orElse(null);
         if (developer == null) {
             return;

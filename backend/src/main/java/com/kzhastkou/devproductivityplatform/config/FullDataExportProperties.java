@@ -15,5 +15,4 @@ public class FullDataExportProperties {
     private String cron = "0 0 2 * * *";
     private String exportDir = "";
     private int retentionDays = 30;
-    private Long developerId = 1L;
 }
